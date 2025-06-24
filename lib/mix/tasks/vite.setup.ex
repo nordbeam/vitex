@@ -10,6 +10,24 @@ defmodule Mix.Tasks.Vite.Setup do
   ## Usage
 
       mix vite.setup
+
+  ## Options
+
+    * `--update-config` - Automatically update config/dev.exs with Vite watcher
+    * `--ssr` - Configure Server-Side Rendering support
+    * `--tls` - Enable automatic TLS certificate detection
+    * `--react` - Enable React Fast Refresh support
+
+  ## Examples
+
+      # Basic setup
+      mix vite.setup
+
+      # Setup with React support
+      mix vite.setup --react
+
+      # Setup with SSR and TLS
+      mix vite.setup --ssr --tls --update-config
   """
 
   use Mix.Task
@@ -19,11 +37,14 @@ defmodule Mix.Tasks.Vite.Setup do
   def run(args) do
     Mix.shell().info("Setting up Phoenix Vite...")
 
+    # Parse options
+    opts = parse_options(args)
+
     # Get the plugin path from the dependency
     plugin_path = PhoenixVite.plugin_path()
 
     # Create vite.config.js if it doesn't exist
-    create_vite_config()
+    create_vite_config(opts)
 
     # Update package.json
     update_package_json(plugin_path)
@@ -55,10 +76,27 @@ defmodule Mix.Tasks.Vite.Setup do
     4. Run `mix phx.server` to start development
 
     Tip: Run `mix vite.setup --update-config` to automatically update your dev.exs
+    
+    Advanced Options:
+    - For HTTPS support, see the README for TLS/HTTPS configuration
+    - For SSR support, add `ssr: 'js/ssr.js'` to your phoenix() config
+    - Set PHX_HOST environment variable for proper CORS configuration
     """)
   end
 
-  defp create_vite_config do
+  defp parse_options(args) do
+    {opts, _} = OptionParser.parse!(args, 
+      switches: [
+        update_config: :boolean,
+        ssr: :boolean,
+        tls: :boolean,
+        react: :boolean
+      ]
+    )
+    opts
+  end
+  
+  defp create_vite_config(opts) do
     config_path = "assets/vite.config.js"
 
     unless File.exists?(config_path) do
@@ -76,6 +114,30 @@ defmodule Mix.Tasks.Vite.Setup do
 
       tailwind_plugin = if has_tailwind, do: "\n    tailwindcss(),", else: ""
 
+      # Build additional configuration based on options
+      additional_config = []
+      
+      if opts[:react] do
+        additional_config = additional_config ++ ["            reactRefresh: true,"]
+      end
+      
+      if opts[:tls] do
+        additional_config = additional_config ++ ["            detectTls: true,"]
+      end
+      
+      if opts[:ssr] do
+        additional_config = additional_config ++ ["            ssr: 'js/ssr.js',"]
+      end
+      
+      # Always add refresh
+      additional_config = additional_config ++ ["            refresh: true,"]
+      
+      additional_opts = if length(additional_config) > 0 do
+        "\n" <> Enum.join(additional_config, "\n")
+      else
+        ""
+      end
+
       config_content = """
       import { defineConfig } from 'vite'
       import phoenix from '../deps/phoenix_vite/priv/static/phoenix_vite'#{tailwind_import}
@@ -87,7 +149,7 @@ defmodule Mix.Tasks.Vite.Setup do
             publicDirectory: '../priv/static',
             buildDirectory: 'assets',
             hotFile: '../priv/hot',
-            manifestPath: '../priv/static/assets/manifest.json',
+            manifestPath: '../priv/static/assets/manifest.json',#{additional_opts}
           })
         ],
       })

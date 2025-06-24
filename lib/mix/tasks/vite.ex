@@ -39,8 +39,32 @@ defmodule Mix.Tasks.Vite do
       ["run", "vite"] ++ args
     end
     
+    # Pass through important environment variables
+    env = [
+      {"NODE_ENV", node_env()},
+      {"MIX_ENV", to_string(Mix.env())}
+    ]
+    
+    # Pass through Phoenix-specific env vars if they exist
+    env = 
+      env
+      |> maybe_add_env("PHX_HOST")
+      |> maybe_add_env("VITE_DEV_SERVER_KEY")
+      |> maybe_add_env("VITE_DEV_SERVER_CERT")
+      |> maybe_add_env("PHOENIX_DOCKER")
+      |> maybe_add_env("DOCKER_ENV")
+      |> maybe_add_env("VITE_PORT")
+      |> maybe_add_env("PHOENIX_BYPASS_ENV_CHECK")
+      |> maybe_add_env("CI")
+      |> maybe_add_env("RELEASE_NAME")
+      |> maybe_add_env("FLY_APP_NAME")
+      |> maybe_add_env("GIGALIXIR_APP_NAME")
+      |> maybe_add_env("HEROKU_APP_NAME")
+      |> maybe_add_env("RENDER")
+      |> maybe_add_env("RAILWAY_ENVIRONMENT")
+    
     Mix.shell().cmd("cd #{assets_dir} && #{npm_path} #{Enum.join(cmd_args, " ")}", 
-      env: [{"NODE_ENV", node_env()}]
+      env: env
     )
   end
   
@@ -50,6 +74,13 @@ defmodule Mix.Tasks.Vite do
   
   defp node_env do
     if Mix.env() == :prod, do: "production", else: "development"
+  end
+  
+  defp maybe_add_env(env, key) do
+    case System.get_env(key) do
+      nil -> env
+      value -> env ++ [{key, value}]
+    end
   end
 end
 

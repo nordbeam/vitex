@@ -16,6 +16,10 @@ Phoenix integration for [Vite](https://vite.dev) - the next generation frontend 
 - 🗂️ Proper handling of vendored libraries
 - 🚀 Optimized production builds with hashed assets
 - 🔄 Full page refresh on Elixir file changes
+- 🔒 TLS/HTTPS support for development
+- 🌐 Server-Side Rendering (SSR) support
+- 🛡️ Environment checks to prevent production mistakes
+- 🔌 Advanced server configuration options
 
 ## Requirements
 
@@ -136,6 +140,155 @@ import topbar from "../vendor/topbar"
 
 The CommonJS plugin is configured to exclude the vendor directory from transformation, allowing UMD and other module formats to work correctly.
 
+## TLS/HTTPS Support
+
+PhoenixVite supports HTTPS in development for scenarios requiring secure connections (e.g., testing with external APIs, OAuth flows).
+
+### Environment Variables
+
+Configure TLS using environment variables:
+
+```bash
+# .env or export directly
+VITE_DEV_SERVER_KEY=/path/to/key.pem
+VITE_DEV_SERVER_CERT=/path/to/cert.pem
+```
+
+### Auto-Detection
+
+Enable automatic certificate detection in your config:
+
+```javascript
+phoenix({
+  // ... other options
+  detectTls: true, // Auto-detect from mkcert/Caddy
+  // or
+  detectTls: 'myapp.test', // Detect for specific host
+})
+```
+
+The plugin searches for certificates in:
+- mkcert: `~/.local/share/mkcert/`
+- Caddy: `~/.local/share/caddy/certificates/local/`
+- Project: `priv/cert/`
+
+### Generating Certificates
+
+Using mkcert (recommended):
+
+```bash
+# Install mkcert
+brew install mkcert
+
+# Install root CA
+mkcert -install
+
+# Generate certificates
+mkcert -key-file priv/cert/key.pem -cert-file priv/cert/cert.pem localhost myapp.test
+```
+
+## Server-Side Rendering (SSR)
+
+PhoenixVite supports SSR for frameworks like React, Vue, or custom solutions.
+
+### Configuration
+
+```javascript
+phoenix({
+  input: 'js/app.js',
+  ssr: 'js/ssr.js', // SSR entry point
+  ssrOutputDirectory: '../priv/ssr', // SSR build output
+})
+```
+
+### Building for SSR
+
+```bash
+# Client build
+mix vite.build
+
+# SSR build
+mix vite build --ssr
+```
+
+### SSR Manifest
+
+SSR builds generate a separate manifest at `priv/ssr/ssr-manifest.json` for server-side asset resolution.
+
+## Environment Protection
+
+PhoenixVite includes safeguards to prevent running the dev server in production environments.
+
+### Automatic Detection
+
+The plugin detects and blocks dev server in:
+- CI environments (`CI=true`)
+- Production (`MIX_ENV=prod`, `NODE_ENV=production`)
+- Deployment platforms (Fly.io, Gigalixir, Heroku, Render, Railway)
+- Test environments (`MIX_ENV=test`)
+- Docker production (`DOCKER_ENV=production`)
+- Elixir releases (`RELEASE_NAME` present)
+
+### Bypassing Checks
+
+For special cases (e.g., integration tests):
+
+```bash
+PHOENIX_BYPASS_ENV_CHECK=1 mix phx.server
+```
+
+## Advanced Server Configuration
+
+### Custom HMR Configuration
+
+```javascript
+export default defineConfig({
+  server: {
+    hmr: {
+      host: 'localhost',
+      port: 5173,
+      protocol: 'ws', // or 'wss' for secure WebSocket
+    },
+    cors: {
+      // Custom CORS configuration
+      origin: ['http://localhost:4000', 'http://myapp.test'],
+    }
+  },
+  plugins: [
+    phoenix({
+      // plugin options...
+    })
+  ],
+})
+```
+
+### Docker/Container Support
+
+PhoenixVite auto-configures for container environments:
+
+```bash
+# Detected automatically
+PHOENIX_DOCKER=1
+# or
+DOCKER_ENV=development
+
+# Custom port
+VITE_PORT=3000
+```
+
+In containers, the dev server:
+- Binds to `0.0.0.0` instead of `localhost`
+- Uses `strictPort: true` to ensure consistent port mapping
+- Properly configures HMR for container networking
+
+### Using PHX_HOST
+
+Set your application URL for proper CORS and dev server configuration:
+
+```bash
+PHX_HOST=https://myapp.test mix phx.server
+```
+
 ## Full Page Refresh
 
 PhoenixVite includes automatic full page refresh when your Elixir files change. This feature is powered by the same `vite-plugin-full-reload` used in Laravel's Vite integration.
@@ -192,8 +345,13 @@ The following Mix tasks are available:
 
 - `mix vite` - Run any Vite command (e.g., `mix vite build`, `mix vite dev`)
 - `mix vite.build` - Build production assets (runs `vite build`)
+- `mix vite.ssr.build` - Build SSR assets (runs `vite build --ssr`)
 - `mix vite.install` - Install npm dependencies in the assets directory
 - `mix vite.setup` - Initial setup for Phoenix Vite in your project
+  - `--update-config` - Auto-update config/dev.exs
+  - `--ssr` - Configure SSR support
+  - `--tls` - Enable TLS auto-detection
+  - `--react` - Enable React Fast Refresh
 
 ## Troubleshooting
 
@@ -221,9 +379,27 @@ export default defineConfig({
 })
 ```
 
+### Common Issues
+
+**Certificate not found errors**: Run with `DEBUG=1` to see all searched paths:
+```bash
+DEBUG=1 mix phx.server
+```
+
+**CORS errors**: Ensure `PHX_HOST` is set to your application URL:
+```bash
+PHX_HOST=http://localhost:4000 mix phx.server
+```
+
+**Port conflicts**: The plugin will warn if Phoenix and Vite are on the same port. Use different ports or configure appropriately.
+
+**WSL users**: The plugin detects WSL and provides specific configuration guidance.
+
 ## Plugin Options
 
 The Vite plugin accepts the following options:
+
+### Core Options
 
 - `input` (required): Entry points to compile
 - `publicDirectory`: Phoenix's public directory (default: `"priv/static"`)
@@ -236,6 +412,19 @@ The Vite plugin accepts the following options:
   - `string` or `string[]` - Custom paths to watch
   - `object` - Advanced configuration with `paths` array and optional config
 - `reactRefresh`: Enable React Refresh support (default: `false`)
+
+### SSR Options
+
+- `ssr`: SSR entry point(s) (default: uses main `input` value)
+- `ssrOutputDirectory`: Directory for SSR builds (default: `"priv/ssr"`)
+
+### Advanced Options
+
+- `detectTls`: Auto-detect TLS certificates (default: `false`)
+  - `true` - Auto-detect certificates from mkcert/Caddy
+  - `false` - Disable TLS detection
+  - `string` - Detect certificates for specific host
+- `transformOnServe`: Function to transform code during development
 
 ## Phoenix 1.8.0-rc.3 Compatibility
 
