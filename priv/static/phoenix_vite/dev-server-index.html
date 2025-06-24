@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Phoenix Vite</title>
+        <style>
+            html, body {
+                height: 100%;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                display: flex;
+            }
+
+            body {
+                font-family: sans-serif;
+                background: #F7FAFC;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+
+            #app {
+                background: white;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 2.5rem;
+            }
+
+            h1 {
+                font-weight: 200;
+                margin: 0 0 1rem;
+                text-align: center;
+            }
+
+            h2 {
+                font-weight: 200;
+                margin: 2rem 0 1rem;
+            }
+
+            p {
+                margin: 0 0 1rem;
+                line-height: 1.6;
+            }
+
+            p:last-child {
+                margin-bottom: 0;
+            }
+
+            a {
+                color: #A855F7;
+                text-decoration: none;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+
+            code {
+                background: #F1F5F9;
+                border-radius: 0.25rem;
+                font-family: 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+                padding: 0.1rem 0.25rem;
+            }
+
+            .code-block {
+                background: #F1F5F9;
+                border-radius: 0.25rem;
+                font-family: 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+                line-height: 1.6;
+                margin: 0 0 1rem 0;
+                overflow-x: auto;
+                padding: 0.5rem;
+            }
+
+            .code-block code {
+                background: transparent;
+                padding: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <h1>Phoenix ❤️ Vite</h1>
+            <p>This Vite dev server isn't meant to be accessed directly.</p>
+            <p>Visit your Phoenix application at its usual URL, with the Vite dev server running in the background.</p>
+            
+            <h2>Starting Your Phoenix App</h2>
+            <p>Make sure both your Phoenix server and Vite dev server are running:</p>
+            
+            <div class="code-block">
+                <code># Terminal 1 - Start Phoenix<br>mix phx.server</code>
+            </div>
+            
+            <div class="code-block">
+                <code># Terminal 2 - Start Vite<br>npm run dev</code>
+            </div>
+            
+            <p>Then visit <a href="http://localhost:4000">http://localhost:4000</a></p>
+            
+            <h2>Learn More</h2>
+            <p>
+                <a href="https://hexdocs.pm/phoenix" target="_blank">Phoenix Documentation</a> &bull;
+                <a href="https://vitejs.dev" target="_blank">Vite Documentation</a>
+            </p>
+        </div>
+    </body>
+</html>

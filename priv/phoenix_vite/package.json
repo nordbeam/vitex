@@ -1,0 +1,33 @@
+{
+  "name": "@phoenix_vite/plugin",
+  "version": "0.1.0",
+  "description": "Vite plugin for Phoenix Framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && rollup -c rollup.config.js",
+    "build:types": "tsc --emitDeclarationOnly --declaration"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.1",
+    "vite-plugin-full-reload": "^1.2.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.3",
+    "@types/node": "^20.16.11",
+    "rollup": "^4.44.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0"
+  }
+}
