@@ -48,7 +48,9 @@ jobs:
     - name: Build JavaScript plugin
       run: |
         cd priv/vitex
-        npm ci
+        # Clean install to avoid npm optional dependency issues
+        rm -rf node_modules package-lock.json
+        npm install
         npm run build
         
     - name: Verify plugin was built
