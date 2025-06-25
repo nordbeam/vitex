@@ -1,0 +1,88 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.1)'
+        required: true
+        type: string
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.16.x'
+        otp-version: '26.x'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+    - name: Update version in mix.exs
+      run: |
+        sed -i 's/@version ".*"/@version "${{ inputs.version }}"/' mix.exs
+        
+    - name: Update version in README
+      run: |
+        sed -i 's/{:vitex, "~> [0-9.]*"}/{:vitex, "~> ${{ inputs.version }}"}/' README.md
+        
+    - name: Install dependencies
+      run: |
+        mix deps.get
+        cd priv/vitex && npm ci
+        
+    - name: Build JavaScript plugin
+      run: |
+        cd priv/vitex
+        npm run build
+        
+    - name: Run tests
+      run: mix test
+      
+    - name: Update CHANGELOG
+      run: |
+        DATE=$(date +%Y-%m-%d)
+        sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [${{ inputs.version }}] - $DATE/" CHANGELOG.md
+        
+    - name: Commit changes
+      run: |
+        git add mix.exs README.md CHANGELOG.md
+        git commit -m "Prepare release v${{ inputs.version }}"
+        
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: release/v${{ inputs.version }}
+        title: "Prepare release v${{ inputs.version }}"
+        body: |
+          This PR prepares the release of v${{ inputs.version }}.
+          
+          ## Changes
+          - Updated version in mix.exs
+          - Updated version in README.md
+          - Updated CHANGELOG.md
+          
+          ## Release Checklist
+          - [ ] Review CHANGELOG entries
+          - [ ] Verify all tests pass
+          - [ ] Ensure documentation is up to date
+          - [ ] Merge this PR
+          - [ ] The merge will automatically trigger the publish workflow
+        labels: release

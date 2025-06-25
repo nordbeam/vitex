@@ -18,7 +18,11 @@ defmodule Vitex do
       <%= Vitex.vite_assets(["js/app.js", "js/admin.js"]) %>
   """
   def vite_assets(entries) when is_list(entries) do
-    Enum.map_join(entries, "\n", &vite_assets/1)
+    entries
+    |> Enum.map(&vite_assets/1)
+    |> Enum.map(fn {:safe, html} -> html end)
+    |> Enum.join("\n")
+    |> Phoenix.HTML.raw()
   end
 
   def vite_assets(entry) when is_binary(entry) do
@@ -86,10 +90,18 @@ defmodule Vitex do
   """
   def asset_path(path) do
     if dev_server_running?() do
-      "#{vite_server_url()}/#{path}"
+      "#{vite_server_url()}/#{String.trim_leading(path, "/")}"
     else
-      manifest_path = get_manifest_path(path)
-      "/#{manifest_path}"
+      static_url = Application.get_env(:vitex, :static_url_path, "/")
+
+      if is_function(static_url, 1) do
+        static_url.(path)
+      else
+        # Ensure proper slash handling
+        static_url = String.trim_trailing(static_url, "/")
+        path = "/" <> String.trim_leading(path, "/")
+        "#{static_url}#{path}"
+      end
     end
   end
 
@@ -112,7 +124,13 @@ defmodule Vitex do
   # Private functions
 
   defp vite_dev_assets(entry) do
-    Phoenix.HTML.raw(~s(<script type="module" src="#{vite_server_url()}/#{entry}"></script>))
+    url = "#{vite_server_url()}/#{entry}"
+
+    if String.ends_with?(entry, ".css") do
+      Phoenix.HTML.raw(~s[<link rel="stylesheet" href="#{url}" />])
+    else
+      Phoenix.HTML.raw(~s[<script type="module" crossorigin src="#{url}"></script>])
+    end
   end
 
   defp vite_prod_assets(entry) do
@@ -120,7 +138,7 @@ defmodule Vitex do
 
     case Map.get(manifest, entry) do
       nil ->
-        raise "Vite manifest missing entry for #{entry}"
+        raise "Asset '#{entry}' not found in Vite manifest"
 
       %{"file" => file} = entry_data ->
         # Add CSS imports
@@ -128,11 +146,16 @@ defmodule Vitex do
 
         css_tags =
           Enum.map(css_files, fn css_file ->
-            ~s(<link rel="stylesheet" href="/#{css_file}" />)
+            ~s(<link rel="stylesheet" crossorigin href="/#{css_file}" />)
           end)
 
-        # Add the main script
-        script_tag = ~s(<script type="module" crossorigin src="/#{file}"></script>)
+        # Add the main entry tag (could be script or CSS)
+        main_tag =
+          if String.ends_with?(entry, ".css") do
+            ~s(<link rel="stylesheet" crossorigin href="/#{file}" />)
+          else
+            ~s(<script type="module" crossorigin src="/#{file}"></script>)
+          end
 
         # Add preload links for imports
         imports = Map.get(entry_data, "imports", [])
@@ -141,14 +164,14 @@ defmodule Vitex do
           Enum.map(imports, fn import_key ->
             case Map.get(manifest, import_key) do
               %{"file" => import_file} ->
-                ~s(<link rel="modulepreload" href="/#{import_file}" />)
+                ~s(<link rel="modulepreload" crossorigin href="/#{import_file}" />)
 
               _ ->
                 ""
             end
           end)
 
-        all_tags = css_tags ++ import_tags ++ [script_tag]
+        all_tags = css_tags ++ import_tags ++ [main_tag]
         Phoenix.HTML.raw(Enum.join(all_tags, "\n"))
     end
   end
@@ -168,7 +191,7 @@ defmodule Vitex do
   end
 
   defp read_hot_file do
-    hot_file_path = Path.join([File.cwd!(), "priv", "hot"])
+    hot_file_path = get_hot_file_path()
 
     case File.read(hot_file_path) do
       {:ok, content} -> {:ok, content}
@@ -176,8 +199,12 @@ defmodule Vitex do
     end
   end
 
+  defp get_hot_file_path do
+    Application.get_env(:vitex, :hot_file, Path.join([File.cwd!(), "priv", "hot"]))
+  end
+
   defp load_manifest do
-    manifest_path = Path.join([File.cwd!(), "priv", "static", "assets", "manifest.json"])
+    manifest_path = get_manifest_path()
 
     case File.read(manifest_path) do
       {:ok, content} ->
@@ -191,12 +218,11 @@ defmodule Vitex do
     end
   end
 
-  defp get_manifest_path(path) do
-    manifest = load_manifest()
-
-    case Map.get(manifest, path) do
-      %{"file" => file} -> file
-      nil -> raise "Asset not found in manifest: #{path}"
-    end
+  defp get_manifest_path do
+    Application.get_env(
+      :vitex,
+      :manifest_path,
+      Path.join([File.cwd!(), "priv", "static", "assets", "manifest.json"])
+    )
   end
 end

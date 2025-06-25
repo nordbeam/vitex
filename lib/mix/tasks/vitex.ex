@@ -4,13 +4,13 @@ defmodule Mix.Tasks.Vitex do
 
   Usage:
 
-      $ mix vite COMMAND ARGS
+      $ mix vitex COMMAND ARGS
 
   Examples:
 
-      $ mix vite build
-      $ mix vite dev
-      $ mix vite preview
+      $ mix vitex build
+      $ mix vitex dev
+      $ mix vitex preview
 
   """
   @shortdoc "Invokes Vite with the given args"

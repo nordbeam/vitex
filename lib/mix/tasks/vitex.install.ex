@@ -70,7 +70,6 @@ if Code.ensure_loaded?(Igniter) do
       |> print_next_steps()
     end
 
-    @doc false
     def maybe_add_inertia_dep(igniter) do
       if igniter.args.options[:inertia] do
         Igniter.Project.Deps.add_dep(igniter, {:inertia, "~> 2.4"})
@@ -79,7 +78,6 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    @doc false
     def setup_html_helpers(igniter) do
       update_web_ex_helper(igniter, :html, fn zipper ->
         import_code = """
@@ -92,7 +90,6 @@ if Code.ensure_loaded?(Igniter) do
       end)
     end
 
-    @doc false
     def maybe_setup_inertia(igniter) do
       if igniter.args.options[:inertia] do
         igniter
@@ -228,7 +225,6 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    @doc false
     def create_vite_config(igniter) do
       {igniter, has_tailwind} = detect_tailwind(igniter)
 
@@ -238,8 +234,8 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp build_vite_config(options, has_tailwind) do
-      imports = build_vite_imports(has_tailwind)
-      plugins = build_vite_plugins(has_tailwind)
+      imports = build_vite_imports(options, has_tailwind)
+      plugins = build_vite_plugins(options, has_tailwind)
       input_files = build_input_files(options)
       additional_opts = build_additional_options(options)
 
@@ -256,17 +252,34 @@ if Code.ensure_loaded?(Igniter) do
             hotFile: '../priv/hot',
             manifestPath: '../priv/static/assets/manifest.json',#{additional_opts}
           })
-        ],
+        ],#{if options[:typescript], do: "\n        resolve: {\n          alias: {\n            '@': '/js'\n          }\n        }", else: ""}
       })
       """
     end
 
-    defp build_vite_imports(has_tailwind) do
-      if has_tailwind, do: "\nimport tailwindcss from '@tailwindcss/vite'", else: ""
+    defp build_vite_imports(options, has_tailwind) do
+      imports = []
+
+      imports =
+        if options[:react],
+          do: imports ++ ["\nimport react from '@vitejs/plugin-react'"],
+          else: imports
+
+      imports =
+        if has_tailwind,
+          do: imports ++ ["\nimport tailwindcss from '@tailwindcss/vite'"],
+          else: imports
+
+      Enum.join(imports)
     end
 
-    defp build_vite_plugins(has_tailwind) do
-      if has_tailwind, do: "\n    tailwindcss(),", else: ""
+    defp build_vite_plugins(options, has_tailwind) do
+      plugins = []
+
+      plugins = if options[:react], do: plugins ++ ["\n    react(),"], else: plugins
+      plugins = if has_tailwind, do: plugins ++ ["\n    tailwindcss(),"], else: plugins
+
+      Enum.join(plugins)
     end
 
     defp build_input_files(options) do
@@ -314,7 +327,6 @@ if Code.ensure_loaded?(Igniter) do
     defp maybe_add_config(configs, _config, false), do: configs
     defp maybe_add_config(configs, config, true), do: [config | configs]
 
-    @doc false
     def update_package_json(igniter) do
       igniter
       |> detect_project_features()
@@ -422,7 +434,7 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    defp update_vendor_imports(igniter) do
+    def update_vendor_imports(igniter) do
       features = igniter.assigns[:detected_features]
 
       igniter
@@ -450,14 +462,13 @@ if Code.ensure_loaded?(Igniter) do
       Igniter.add_task(igniter, "cmd", ["npm install --prefix assets"])
     end
 
-    @doc false
     def setup_watcher(igniter) do
       {igniter, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
 
       watcher_value =
         {:code,
          Sourceror.parse_string!("""
-         ["node_modules/.bin/vite", cd: "assets"]
+         ["node_modules/.bin/vite", "dev", cd: Path.expand("../assets", __DIR__)]
          """)}
 
       Igniter.Project.Config.configure(
@@ -469,7 +480,6 @@ if Code.ensure_loaded?(Igniter) do
       )
     end
 
-    @doc false
     def remove_old_watchers(igniter) do
       {igniter, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
       app_name = Igniter.Project.Application.app_name(igniter)
@@ -500,7 +510,6 @@ if Code.ensure_loaded?(Igniter) do
       )
     end
 
-    @doc false
     def update_root_layout(igniter) do
       file_path =
         Path.join([
@@ -512,7 +521,6 @@ if Code.ensure_loaded?(Igniter) do
         ])
 
       inertia = igniter.args.options[:inertia] || false
-      typescript = igniter.args.options[:typescript] || false
 
       if inertia do
         # For Inertia, we need a completely different root layout
@@ -533,8 +541,7 @@ if Code.ensure_loaded?(Igniter) do
           Igniter.create_new_file(igniter, file_path, content)
         end
       else
-        # Determine the correct file extension
-        js_extension = if typescript, do: "ts", else: "js"
+        react = igniter.args.options[:react] || false
 
         igniter
         |> Igniter.include_existing_file(file_path)
@@ -546,21 +553,26 @@ if Code.ensure_loaded?(Igniter) do
                 # Already configured
                 content
               else
-                # Replace Phoenix asset helpers with Vite helpers
+                # Replace Phoenix asset helpers with Vite helpers  
+                # First look for the pattern and replace both CSS and JS tags together
                 updated =
-                  content
-                  |> String.replace(
-                    ~r/<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>/,
-                    "<%= Vite.vite_assets(\"css/app.css\") %>"
-                  )
-                  |> String.replace(
-                    ~r/<script[^>]+src={~p"\/assets\/app\.js"}[^>]*><\/script>/,
-                    "<%= Vite.vite_assets(\"js/app.#{js_extension}\") %>"
-                  )
+                  if Regex.match?(~r/<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>/, content) do
+                    content
+                    |> String.replace(
+                      ~r/(\s*)<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>\n\s*<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\n\s*<\/script>/,
+                      "\\1<%= Vite.vite_client() %>\n\\1<%= Vite.vite_assets(\"js/app.js\") %>"
+                    )
+                  else
+                    content
+                  end
 
-                # Add vite_client if not present
-                if not String.contains?(updated, "vite_client") do
-                  String.replace(updated, "</head>", "    <%= Vite.vite_client() %>\n  </head>")
+                # Add react_refresh after vite_client if React is enabled
+                if react and not String.contains?(updated, "react_refresh") do
+                  String.replace(
+                    updated,
+                    "<%= Vite.vite_client() %>",
+                    "<%= Vite.vite_client() %>\n    <%= Vite.react_refresh() %>"
+                  )
                 else
                   updated
                 end
@@ -615,7 +627,6 @@ if Code.ensure_loaded?(Igniter) do
       """
     end
 
-    @doc false
     def setup_assets(igniter) do
       typescript = igniter.args.options[:typescript] || false
       react = igniter.args.options[:react] || false
@@ -653,32 +664,14 @@ if Code.ensure_loaded?(Igniter) do
           end)
 
         react ->
-          # First, handle TypeScript conversion if needed
-          igniter =
-            if extension == "ts" do
-              # If TypeScript is enabled, we need to rename app.js to app.ts
-              Igniter.move_file(igniter, "assets/js/app.js", "assets/js/app.ts", on_exists: :skip)
-            else
-              igniter
-            end
+          # For React (not Inertia), create a JSX/TSX file
+          entry_extension = if typescript, do: "tsx", else: "jsx"
+          content = react_app_content(extension)
 
           igniter
-          |> Igniter.include_existing_file("assets/js/app.#{extension}")
-          |> Igniter.update_file("assets/js/app.#{extension}", fn source ->
-            Rewrite.Source.update(source, :content, fn
-              content when is_binary(content) ->
-                if String.contains?(content, "react") || String.contains?(content, "React") do
-                  # Already has React setup
-                  content
-                else
-                  # Replace with React-enabled content while preserving any custom code
-                  react_app_content(extension)
-                end
-
-              content ->
-                content
-            end)
-          end)
+          |> Igniter.create_new_file("assets/js/app.#{entry_extension}", content,
+            on_exists: :overwrite
+          )
 
         true ->
           # For non-React projects, handle TypeScript conversion if needed
@@ -845,24 +838,23 @@ if Code.ensure_loaded?(Igniter) do
       """
     end
 
-    @doc false
     def update_mix_aliases(igniter) do
       igniter
       |> Igniter.Project.TaskAliases.modify_existing_alias("assets.setup", fn zipper ->
         {:ok,
          Sourceror.Zipper.replace(
            zipper,
-           quote(do: ["vite.install --if-missing", "vite install"])
+           quote(do: ["vitex.install --if-missing", "vitex install"])
          )}
       end)
       |> Igniter.Project.TaskAliases.modify_existing_alias("assets.build", fn zipper ->
-        {:ok, Sourceror.Zipper.replace(zipper, quote(do: ["vite install", "vite build"]))}
+        {:ok, Sourceror.Zipper.replace(zipper, quote(do: ["vitex install", "vitex build"]))}
       end)
       |> Igniter.Project.TaskAliases.modify_existing_alias("assets.deploy", fn zipper ->
         {:ok,
          Sourceror.Zipper.replace(
            zipper,
-           quote(do: ["vite install", "vite build", "phx.digest"])
+           quote(do: ["vitex install", "vitex build", "phx.digest"])
          )}
       end)
     end
@@ -1062,7 +1054,7 @@ if Code.ensure_loaded?(Igniter) do
       notice = """
       SSR Configuration:
       - Create a js/ssr.js file for your server-side rendering logic
-      - Use `mix vite.ssr.build` to build your SSR bundle
+      - Use `mix vitex.ssr.build` to build your SSR bundle
       """
 
       notices ++ [notice]
@@ -1127,11 +1119,11 @@ else
   defmodule Mix.Tasks.Vitex.Install do
     @shortdoc "Installs Phoenix Vite | Install `igniter` to use"
     @moduledoc """
-    The task 'vite.install' requires igniter for advanced installation features.
+    The task 'vitex.install' requires igniter for advanced installation features.
 
     You can still set up Phoenix Vite using:
 
-        mix vite.setup
+        mix vitex.setup
 
     To use the full installer with automatic configuration, install igniter:
 
@@ -1140,14 +1132,14 @@ else
     Then run:
 
         mix deps.get
-        mix vite.install
+        mix vitex.install
     """
 
     use Mix.Task
 
     def run(argv) do
       Mix.shell().info("""
-      The task 'vite.install' requires igniter for automatic installation.
+      The task 'vitex.install' requires igniter for automatic installation.
       """)
     end
   end

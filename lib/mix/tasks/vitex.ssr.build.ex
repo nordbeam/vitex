@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Vitex.Ssr.Build do
 
   ## Usage
 
-      $ mix vite.ssr.build
+      $ mix vitex.ssr.build
 
   The task will install dependencies if needed and then run the SSR build.
 

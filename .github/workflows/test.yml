@@ -1,0 +1,87 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/PUBLISHING.md'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        elixir: ['1.14.x', '1.15.x', '1.16.x']
+        otp: ['25.x', '26.x']
+        exclude:
+          - elixir: '1.14.x'
+            otp: '26.x'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ matrix.elixir }}
+        otp-version: ${{ matrix.otp }}
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        
+    - name: Cache Elixir dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-mix-
+          
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: priv/vitex/node_modules
+        key: ${{ runner.os }}-npm-${{ hashFiles('priv/vitex/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-
+          
+    - name: Install Elixir dependencies
+      run: mix deps.get
+      
+    - name: Compile dependencies
+      run: mix deps.compile
+      
+    - name: Build JavaScript plugin
+      run: |
+        cd priv/vitex
+        npm ci
+        npm run build
+        
+    - name: Verify plugin was built
+      run: |
+        if [ ! -f "priv/static/vitex/index.js" ]; then
+          echo "Error: Plugin build failed - index.js not found"
+          exit 1
+        fi
+        
+    - name: Check formatting
+      run: mix format --check-formatted
+      
+    - name: Run tests
+      run: mix test
+      
+    - name: Check for unused dependencies
+      run: mix deps.unlock --check-unused
+      
+    - name: Check for security vulnerabilities
+      run: mix deps.audit
+      continue-on-error: true

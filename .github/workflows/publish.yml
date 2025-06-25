@@ -1,0 +1,98 @@
+name: Publish to Hex.pm
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Only run on version tags like v0.1.0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.16.x'
+        otp-version: '26.x'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        
+    - name: Cache Elixir dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-
+          
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: priv/vitex/node_modules
+        key: ${{ runner.os }}-npm-${{ hashFiles('priv/vitex/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-
+          
+    - name: Install Elixir dependencies
+      run: mix deps.get
+      
+    - name: Build JavaScript plugin
+      run: |
+        cd priv/vitex
+        npm ci
+        npm run build
+        
+    - name: Verify plugin was built
+      run: |
+        if [ ! -f "priv/static/vitex/index.js" ]; then
+          echo "Error: Plugin build failed - index.js not found"
+          exit 1
+        fi
+        echo "Plugin built successfully"
+        
+    - name: Run tests
+      run: mix test
+      
+    - name: Check formatting
+      run: mix format --check-formatted
+      
+    - name: Verify tag matches version
+      run: |
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        MIX_VERSION=$(grep '@version' mix.exs | head -n1 | cut -d'"' -f2)
+        if [ "$TAG_VERSION" != "$MIX_VERSION" ]; then
+          echo "Error: Tag version ($TAG_VERSION) does not match mix.exs version ($MIX_VERSION)"
+          exit 1
+        fi
+        echo "Version check passed: $TAG_VERSION"
+        
+    - name: Publish to Hex.pm
+      env:
+        HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+      run: |
+        mix hex.publish --yes
+        
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref_name }}
+        body: |
+          Vitex ${{ github.ref_name }} has been released!
+          
+          View on Hex.pm: https://hex.pm/packages/vitex
+          
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+        draft: false
+        prerelease: false
