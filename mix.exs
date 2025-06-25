@@ -59,6 +59,11 @@ defmodule Vitex.MixProject do
         LICENSE
         CHANGELOG.md
         .formatter.exs
+      ),
+      exclude_patterns: ~w(
+        priv/vitex/node_modules
+        priv/vitex/package-lock.json
+        priv/vitex/bun.lock
       )
     ]
   end
