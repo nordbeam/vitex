@@ -1,7 +1,7 @@
 
 <div align="center">
 <h1 align="center">
-# Vitex
+Vitex
 </h1>
 <img src="https://raw.githubusercontent.com/nordbeam/vitex/main/logo.svg" width="200px"/>
 
