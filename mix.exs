@@ -1,12 +1,12 @@
-defmodule PhoenixVite.MixProject do
+defmodule Vitex.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/phoenixframework/phoenix_vite"
+  @source_url "https://github.com/phoenixframework/vitex"
 
   def project do
     [
-      app: :phoenix_vite,
+      app: :vitex,
       version: @version,
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
@@ -14,7 +14,7 @@ defmodule PhoenixVite.MixProject do
       package: package(),
       description: description(),
       docs: docs(),
-      name: "PhoenixVite",
+      name: "Vitex",
       source_url: @source_url,
       homepage_url: @source_url
     ]
@@ -31,6 +31,7 @@ defmodule PhoenixVite.MixProject do
       {:phoenix, "~> 1.7"},
       {:phoenix_html, "~> 3.3 or ~> 4.0"},
       {:jason, "~> 1.2"},
+      {:igniter, "~> 0.5", optional: true},
       {:ex_doc, "~> 0.30", only: :dev, runtime: false}
     ]
   end
@@ -43,7 +44,7 @@ defmodule PhoenixVite.MixProject do
 
   defp package do
     [
-      name: "phoenix_vite",
+      name: "vitex",
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url

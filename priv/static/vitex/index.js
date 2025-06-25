@@ -2415,8 +2415,7 @@ function resolvePhoenixPlugin(pluginConfig) {
             const environment = loadEnv(env.mode, userConfig.envDir || process.cwd(), "");
             const assetUrl = environment.ASSET_URL ?? "assets";
             const serverConfig = env.command === "serve"
-                ? (resolveDevelopmentEnvironmentServerConfig(pluginConfig.detectTls, environment) ??
-                    resolveEnvironmentServerConfig(environment))
+                ? (resolveDevelopmentEnvironmentServerConfig(pluginConfig.detectTls, environment) ?? resolveEnvironmentServerConfig(environment))
                 : undefined;
             ensureCommandShouldRunInEnvironment(env.command, environment);
             // Warn about common configuration issues
@@ -2424,15 +2423,18 @@ function resolvePhoenixPlugin(pluginConfig) {
                 checkCommonConfigurationIssues(pluginConfig, environment, userConfig);
             }
             return {
-                base: userConfig.base ?? (env.command === "build" ? resolveBase(pluginConfig, assetUrl) : ""),
+                base: userConfig.base ??
+                    (env.command === "build" ? resolveBase(pluginConfig, assetUrl) : ""),
                 publicDir: userConfig.publicDir ?? false,
                 build: {
                     manifest: userConfig.build?.manifest ?? (ssr ? false : true),
-                    ssrManifest: userConfig.build?.ssrManifest ?? (ssr ? "ssr-manifest.json" : false),
+                    ssrManifest: userConfig.build?.ssrManifest ??
+                        (ssr ? "ssr-manifest.json" : false),
                     outDir: userConfig.build?.outDir ?? resolveOutDir(pluginConfig, ssr),
                     emptyOutDir: false,
                     rollupOptions: {
-                        input: userConfig.build?.rollupOptions?.input ?? resolveInput(pluginConfig, ssr),
+                        input: userConfig.build?.rollupOptions?.input ??
+                            resolveInput(pluginConfig, ssr),
                     },
                     assetsInlineLimit: userConfig.build?.assetsInlineLimit ?? 0,
                 },
@@ -2466,17 +2468,20 @@ function resolvePhoenixPlugin(pluginConfig) {
                     ],
                 },
                 server: {
-                    origin: userConfig?.server?.origin ?? "http://__phoenix_vite_placeholder__.test",
+                    origin: userConfig?.server?.origin ?? "http://__vitex_placeholder__.test",
                     cors: userConfig?.server?.cors ?? {
                         origin: userConfig?.server?.origin ?? [
                             // Default patterns for localhost (IPv4, IPv6)
                             /^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/, // Copied from Vite itself
                             // Phoenix app URL from environment
-                            ...(environment.PHX_HOST ? [
-                                environment.PHX_HOST.startsWith("http://") || environment.PHX_HOST.startsWith("https://")
-                                    ? environment.PHX_HOST
-                                    : `http://${environment.PHX_HOST}`
-                            ] : []),
+                            ...(environment.PHX_HOST
+                                ? [
+                                    environment.PHX_HOST.startsWith("http://") ||
+                                        environment.PHX_HOST.startsWith("https://")
+                                        ? environment.PHX_HOST
+                                        : `http://${environment.PHX_HOST}`,
+                                ]
+                                : []),
                             // Common local development patterns
                             /^https?:\/\/.*\.test(?::\d+)?$/, // *.test domains (common for local dev)
                             /^https?:\/\/.*\.local(?::\d+)?$/, // *.local domains
@@ -2484,11 +2489,16 @@ function resolvePhoenixPlugin(pluginConfig) {
                         ],
                     },
                     // Handle Docker/container environments
-                    ...(environment.PHOENIX_DOCKER || environment.DOCKER_ENV ? {
-                        host: userConfig?.server?.host ?? "0.0.0.0",
-                        port: userConfig?.server?.port ?? (environment.VITE_PORT ? parseInt(environment.VITE_PORT) : 5173),
-                        strictPort: userConfig?.server?.strictPort ?? true,
-                    } : undefined),
+                    ...(environment.PHOENIX_DOCKER || environment.DOCKER_ENV
+                        ? {
+                            host: userConfig?.server?.host ?? "0.0.0.0",
+                            port: userConfig?.server?.port ??
+                                (environment.VITE_PORT
+                                    ? parseInt(environment.VITE_PORT)
+                                    : 5173),
+                            strictPort: userConfig?.server?.strictPort ?? true,
+                        }
+                        : undefined),
                     ...(serverConfig
                         ? {
                             host: userConfig?.server?.host ?? serverConfig.host,
@@ -2519,7 +2529,7 @@ function resolvePhoenixPlugin(pluginConfig) {
         },
         transform(code) {
             if (resolvedConfig.command === "serve") {
-                code = code.replace(/http:\/\/__phoenix_vite_placeholder__\.test/g, viteDevServerUrl);
+                code = code.replace(/http:\/\/__vitex_placeholder__\.test/g, viteDevServerUrl);
                 if (pluginConfig.transformOnServe) {
                     return pluginConfig.transformOnServe(code, viteDevServerUrl);
                 }
@@ -2705,7 +2715,9 @@ function checkCommonConfigurationIssues(pluginConfig, env, userConfig) {
             `This will cause conflicts. Phoenix and Vite must run on different ports.\n`);
     }
     // Check if running in WSL without proper host configuration
-    if (process.platform === "linux" && env.WSL_DISTRO_NAME && !userConfig.server?.host) {
+    if (process.platform === "linux" &&
+        env.WSL_DISTRO_NAME &&
+        !userConfig.server?.host) {
         console.warn(`\n${colors.yellow("Warning")}: Running in WSL without explicit host configuration.\n` +
             `You may need to set server.host to '0.0.0.0' in your vite.config.js for proper access from Windows.\n`);
     }
@@ -2723,12 +2735,18 @@ function checkCommonConfigurationIssues(pluginConfig, env, userConfig) {
         fs.mkdirSync(hotFileDir, { recursive: true });
     }
     // Check for React configuration issues
-    if (pluginConfig.reactRefresh && !userConfig.plugins?.some(p => typeof p === "object" && p !== null && "name" in p && p.name === "@vitejs/plugin-react")) {
+    if (pluginConfig.reactRefresh &&
+        !userConfig.plugins?.some((p) => typeof p === "object" &&
+            p !== null &&
+            "name" in p &&
+            p.name === "@vitejs/plugin-react")) {
         console.warn(`\n${colors.yellow("Warning")}: reactRefresh is enabled but @vitejs/plugin-react is not detected.\n` +
             `Install and configure @vitejs/plugin-react for React refresh to work properly.\n`);
     }
     // Warn about SSL in non-development environments
-    if (env.MIX_ENV && env.MIX_ENV !== "dev" && (pluginConfig.detectTls || env.VITE_DEV_SERVER_KEY)) {
+    if (env.MIX_ENV &&
+        env.MIX_ENV !== "dev" &&
+        (pluginConfig.detectTls || env.VITE_DEV_SERVER_KEY)) {
         console.warn(`\n${colors.yellow("Warning")}: TLS/SSL is configured but MIX_ENV is set to "${env.MIX_ENV}".\n` +
             `TLS is typically only needed in development. Consider disabling it for other environments.\n`);
     }
@@ -2757,7 +2775,8 @@ function ensureCommandShouldRunInEnvironment(command, env) {
         throw new Error("You should not run the Vite HMR server on Gigalixir. You should build your assets for production instead. To disable this ENV check you may set PHOENIX_BYPASS_ENV_CHECK=1");
     }
     // Check for Heroku deployment
-    if (typeof env.DYNO !== "undefined" && typeof env.HEROKU_APP_NAME !== "undefined") {
+    if (typeof env.DYNO !== "undefined" &&
+        typeof env.HEROKU_APP_NAME !== "undefined") {
         throw new Error("You should not run the Vite HMR server on Heroku. You should build your assets for production instead. To disable this ENV check you may set PHOENIX_BYPASS_ENV_CHECK=1");
     }
     // Check for Render deployment
@@ -2769,15 +2788,18 @@ function ensureCommandShouldRunInEnvironment(command, env) {
         throw new Error("You should not run the Vite HMR server on Railway. You should build your assets for production instead. To disable this ENV check you may set PHOENIX_BYPASS_ENV_CHECK=1");
     }
     // Check for running in ExUnit tests
-    if (env.MIX_ENV === "test" && typeof env.PHOENIX_INTEGRATION_TEST === "undefined") {
+    if (env.MIX_ENV === "test" &&
+        typeof env.PHOENIX_INTEGRATION_TEST === "undefined") {
         throw new Error("You should not run the Vite HMR server in the test environment. You should build your assets for production instead. To disable this ENV check you may set PHOENIX_BYPASS_ENV_CHECK=1 or PHOENIX_INTEGRATION_TEST=1 for integration tests that need the dev server.");
     }
     // Check for Docker production environments
-    if (typeof env.DOCKER_ENV !== "undefined" && env.DOCKER_ENV === "production") {
+    if (typeof env.DOCKER_ENV !== "undefined" &&
+        env.DOCKER_ENV === "production") {
         throw new Error("You should not run the Vite HMR server in production Docker containers. You should build your assets for production instead. To disable this ENV check you may set PHOENIX_BYPASS_ENV_CHECK=1");
     }
     // Check for release mode
-    if (typeof env.RELEASE_NAME !== "undefined" || typeof env.RELEASE_NODE !== "undefined") {
+    if (typeof env.RELEASE_NAME !== "undefined" ||
+        typeof env.RELEASE_NODE !== "undefined") {
         throw new Error("You should not run the Vite HMR server in an Elixir release. You should build your assets for production instead. To disable this ENV check you may set PHOENIX_BYPASS_ENV_CHECK=1");
     }
 }
@@ -2888,7 +2910,8 @@ function resolveEnvironmentServerConfig(env) {
     }
     if (missingFiles.length > 0) {
         throw new Error(`Phoenix Vite Plugin: Unable to find the certificate files specified in your environment.\n` +
-            missingFiles.join("\n") + "\n" +
+            missingFiles.join("\n") +
+            "\n" +
             `Please ensure the paths are correct and the files exist.`);
     }
     const host = resolveHostFromEnv(env);
@@ -2914,7 +2937,8 @@ function resolveHostFromEnv(env) {
     if (env.PHX_HOST) {
         try {
             // If PHX_HOST contains a full URL, extract the host
-            if (env.PHX_HOST.startsWith("http://") || env.PHX_HOST.startsWith("https://")) {
+            if (env.PHX_HOST.startsWith("http://") ||
+                env.PHX_HOST.startsWith("https://")) {
                 return new URL(env.PHX_HOST).host;
             }
             // Otherwise, use it as is
@@ -2931,25 +2955,31 @@ function resolveHostFromEnv(env) {
  */
 function resolveDevServerUrl(address, config, userConfig) {
     const configHmrProtocol = typeof config.server.hmr === "object" ? config.server.hmr.protocol : null;
-    const clientProtocol = configHmrProtocol ? (configHmrProtocol === "wss" ? "https" : "http") : null;
+    const clientProtocol = configHmrProtocol
+        ? configHmrProtocol === "wss"
+            ? "https"
+            : "http"
+        : null;
     const serverProtocol = config.server.https ? "https" : "http";
     const protocol = clientProtocol ?? serverProtocol;
     const configHmrHost = typeof config.server.hmr === "object" ? config.server.hmr.host : null;
     const configHost = typeof config.server.host === "string" ? config.server.host : null;
     const dockerHost = process.env.PHOENIX_DOCKER && !userConfig.server?.host ? "localhost" : null;
-    const serverAddress = isIpv6(address) ? `[${address.address}]` : address.address;
+    const serverAddress = isIpv6(address)
+        ? `[${address.address}]`
+        : address.address;
     const host = configHmrHost ?? dockerHost ?? configHost ?? serverAddress;
     const configHmrClientPort = typeof config.server.hmr === "object" ? config.server.hmr.clientPort : null;
     const port = configHmrClientPort ?? address.port;
     return `${protocol}://${host}:${port}`;
 }
 function isIpv6(address) {
-    return address.family === "IPv6"
+    return (address.family === "IPv6" ||
         // In node >=18.0 <18.4 this was an integer value. This was changed in a minor version.
         // See: https://github.com/laravel/vite-plugin/issues/103
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore-next-line
-        || address.family === 6;
+        address.family === 6);
 }
 /**
  * Resolve the Vite base option from the configuration.
@@ -3085,7 +3115,8 @@ function resolveDevelopmentEnvironmentServerConfig(detectTls, env) {
         const uniquePaths = [...new Set(searchPaths)];
         console.warn(`\n${colors.yellow("Warning")}: Unable to find TLS certificate files for host "${resolvedHost}".\n\n` +
             `Searched in the following locations:\n` +
-            uniquePaths.map(p => `  - ${p}`).join("\n") + "\n\n" +
+            uniquePaths.map((p) => `  - ${p}`).join("\n") +
+            "\n\n" +
             `To generate local certificates, you can use mkcert:\n` +
             `  ${colors.dim("$")} brew install mkcert  ${colors.dim("# Install mkcert (macOS)")}\n` +
             `  ${colors.dim("$")} mkcert -install        ${colors.dim("# Install local CA")}\n` +

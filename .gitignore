@@ -17,13 +17,13 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-phoenix_vite-*.tar
+vitex-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
 
 # Ignore node_modules but not dist (we commit the built file)
-/priv/phoenix_vite/node_modules/
+/priv/vitex/node_modules/
 
 # macOS
 .DS_Store

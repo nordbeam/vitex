@@ -1,504 +1,617 @@
-# PhoenixVite
+# Vitex
 
-[![Hex.pm](https://img.shields.io/hexpm/v/phoenix_vite.svg)](https://hex.pm/packages/phoenix_vite)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-purple.svg)](https://hexdocs.pm/phoenix_vite)
-[![License](https://img.shields.io/hexpm/l/phoenix_vite.svg)](https://github.com/phoenixframework/phoenix_vite/blob/main/LICENSE)
+<div align="center">
+<img src="https://raw.githubusercontent.com/nordbeam/vitex/main/logo.svg" width="200px"/>
 
-Phoenix integration for [Vite](https://vite.dev) - the next generation frontend build tool. Fast, reliable, and developer-friendly.
+[![Hex.pm](https://img.shields.io/hexpm/v/vitex.svg)](https://hex.pm/packages/vitex)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/vitex/)
+[![License](https://img.shields.io/hexpm/l/vitex.svg)](https://github.com/nordbeam/vitex/blob/main/LICENSE)
+[![Elixir Version](https://img.shields.io/badge/elixir-~%3E%201.13-purple)](https://elixir-lang.org/)
+[![Phoenix Version](https://img.shields.io/badge/phoenix-~%3E%201.7-orange)](https://www.phoenixframework.org/)
+
+**Phoenix integration for Vite - a fast frontend build tool**
+
+[Features](#features) • [Installation](#installation) • [Usage](#usage) • [Configuration](#configuration) • [Documentation](#documentation)
+
+</div>
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation](#installation)
+  - [Automatic Installation (Recommended)](#automatic-installation-recommended)
+  - [Manual Installation](#manual-installation)
+- [Usage](#usage)
+  - [Basic Usage](#basic-usage)
+  - [React Support](#react-support)
+  - [TypeScript Support](#typescript-support)
+  - [Inertia.js Integration](#inertiajs-integration)
+  - [Server-Side Rendering (SSR)](#server-side-rendering-ssr)
+- [Configuration](#configuration)
+  - [Vite Configuration](#vite-configuration)
+  - [TLS/HTTPS Setup](#tlshttps-setup)
+  - [Environment Variables](#environment-variables)
+- [Mix Tasks](#mix-tasks)
+- [Helper Functions](#helper-functions)
+- [Common Use Cases](#common-use-cases)
+  - [Single Page Applications](#single-page-applications)
+  - [Tailwind CSS](#tailwind-css)
+  - [Multiple Entry Points](#multiple-entry-points)
+  - [Code Splitting](#code-splitting)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Introduction
+
+Vitex brings the power of [Vite](https://vitejs.dev/) to Phoenix applications, replacing the traditional esbuild setup with a modern, fast, and feature-rich development experience. With Vitex, you get instant hot module replacement (HMR), optimized production builds, and seamless integration with modern frontend frameworks.
+
+### Why Vitex?
+
+- **⚡ Lightning Fast HMR**: See your changes instantly without page reloads
+- **🔧 Zero Configuration**: Works out of the box with sensible defaults
+- **🎯 Framework Agnostic**: Support for React, Vue, Svelte, and vanilla JavaScript
+- **📦 Optimized Builds**: Automatic code splitting and tree shaking
+- **🔥 Modern Development**: ES modules, TypeScript, JSX, and CSS modules support
+- **🚀 Production Ready**: Efficient bundling with rollup under the hood
 
 ## Features
 
-- ⚡️ Lightning-fast hot module replacement (HMR)
-- 📦 Zero npm package installation required
-- 🔧 Automatic configuration for Phoenix 1.7+ and 1.8+
-- 🎨 Built-in Tailwind CSS v4 support
-- ⚛️ React Fast Refresh support
-- 🗂️ Proper handling of vendored libraries
-- 🚀 Optimized production builds with hashed assets
-- 🔄 Full page refresh on Elixir file changes
-- 🔒 TLS/HTTPS support for development
-- 🌐 Server-Side Rendering (SSR) support
-- 🛡️ Environment checks to prevent production mistakes
-- 🔌 Advanced server configuration options
-
-## Requirements
-
-- Elixir 1.13+
-- Phoenix 1.7+
-- Node.js 16+ (for running Vite)
+- ✅ **Hot Module Replacement (HMR)** - Instant updates without losing state
+- ✅ **React Fast Refresh** - Preserve component state during development
+- ✅ **TypeScript Support** - First-class TypeScript support with zero config
+- ✅ **Inertia.js Integration** - Build SPAs with server-side routing
+- ✅ **SSR Support** - Server-side rendering for better SEO and performance
+- ✅ **Asset Optimization** - Automatic minification, tree-shaking, and code splitting
+- ✅ **CSS Processing** - PostCSS, CSS modules, and preprocessor support
+- ✅ **Static Asset Handling** - Import images, fonts, and other assets
+- ✅ **Manifest Generation** - Production-ready asset manifests with hashing
+- ✅ **Multiple Entry Points** - Support for multiple JavaScript/CSS entry files
+- ✅ **Phoenix LiveView Compatible** - Works seamlessly with LiveView
+- ✅ **Automatic TLS Detection** - Detects and uses local certificates for HTTPS
 
 ## Installation
 
-Add `phoenix_vite` to your list of dependencies in `mix.exs`:
+### Automatic Installation (Recommended)
+
+The easiest way to add Vitex to your Phoenix application is using the automatic installer with [Igniter](https://github.com/ash-project/igniter):
+
+1. Use the [Igniter](https://hexdocs.pm/igniter) installer.
+
+```sh
+mix archive.install hex igniter_new
+```
+
+3. Run the installer:
+
+```bash
+# Basic installation
+mix igniter.install vitex
+
+# With React support
+mix igniter.install vitex --react
+
+# With TypeScript
+mix igniter.install vitex --typescript
+
+# With Inertia.js (includes React)
+mix igniter.install vitex --inertia
+
+# With all features
+mix igniter.install vitex --react --typescript --tls
+```
+
+The installer will:
+- Create `vite.config.js` with appropriate settings
+- Update `package.json` with necessary dependencies
+- Configure Phoenix watchers for development
+- Update your root layout to use Vite helpers
+- Set up asset files for your chosen configuration
+
+### Manual Installation
+
+If you prefer manual setup or don't want to use Igniter:
+
+1. Add Vitex to your dependencies:
 
 ```elixir
+# mix.exs
 def deps do
   [
-    {:phoenix_vite, "~> 0.1.0"}
+    {:vitex, "~> 0.1.0"}
   ]
 end
 ```
 
-Then run:
-
-```bash
-mix deps.get
-mix vite.setup
-
-# Optional: automatically update config/dev.exs
-mix vite.setup --update-config
-```
-
-### What `vite.setup` does:
-
-1. **Auto-detects Phoenix ESM modules** - Uses `phoenix.mjs` and `phoenix_live_view.esm.js` when available
-2. **Auto-configures Tailwind CSS v4** - Detects and sets up @tailwindcss/vite plugin
-3. **Handles vendored libraries** - CommonJS plugin automatically excludes `vendor/` directory
-4. **Sets package.json type to "module"** - Required for ESM compatibility
-5. **Configures all necessary aliases** - Maps Phoenix dependencies correctly
-6. **Auto-detects package manager** - Works with npm, yarn, pnpm, or bun
-
-## Configuration
-
-After running the setup task, you'll have a `assets/vite.config.js` file. The Vite plugin is loaded directly from your Elixir dependencies:
+2. Create `assets/vite.config.js`:
 
 ```javascript
 import { defineConfig } from 'vite'
-import phoenix from '../deps/phoenix_vite/priv/static/phoenix_vite'
-import tailwindcss from '@tailwindcss/vite'
+import phoenix from '../deps/vitex/priv/static/vitex'
 
 export default defineConfig({
   plugins: [
-    tailwindcss(),
     phoenix({
       input: ['js/app.js', 'css/app.css'],
       publicDirectory: '../priv/static',
       buildDirectory: 'assets',
       hotFile: '../priv/hot',
       manifestPath: '../priv/static/assets/manifest.json',
-      refresh: true, // Enable full page refresh on Elixir file changes
+      refresh: true
     })
   ],
 })
 ```
 
-Note: The Tailwind CSS plugin is automatically included if Tailwind is detected in your project.
+3. Update `assets/package.json`:
 
-## Development Setup
+```json
+{
+  "name": "your_app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vite": "^7.0.0"
+  }
+}
+```
 
-1. Update your `config/dev.exs` to use Vite as a watcher:
+4. Update your Phoenix configuration:
 
 ```elixir
-config :my_app, MyAppWeb.Endpoint,
+# config/dev.exs
+config :your_app, YourAppWeb.Endpoint,
   watchers: [
-    node: ["node_modules/.bin/vite", cd: Path.expand("../assets", __DIR__)]
+    node: ["node_modules/.bin/vite", cd: "assets"]
   ]
 ```
 
-2. Update your root layout template (`lib/my_app_web/components/layouts/root.html.heex`):
+5. Update your root layout:
 
 ```heex
+# lib/your_app_web/components/layouts/root.html.heex
 <!DOCTYPE html>
 <html>
   <head>
     <!-- ... -->
-    <%= PhoenixVite.vite_client() %>
-    <%= if function_exported?(PhoenixVite, :react_refresh, 0) && Application.get_env(:my_app, :react_refresh, false) do %>
-      <%= PhoenixVite.react_refresh() %>
-    <% end %>
+    <%= Vitex.vite_client() %>
+    <%= Vitex.vite_assets("css/app.css") %>
+    <%= Vitex.vite_assets("js/app.js") %>
   </head>
-  <body>
-    <%= @inner_content %>
-    <%= PhoenixVite.vite_assets("js/app.js") %>
-  </body>
+  <!-- ... -->
 </html>
 ```
 
-## Production Build
+## Usage
 
-Add an assets build step to your deployment process:
+### Basic Usage
 
-```elixir
-# In mix.exs
-defp aliases do
-  [
-    # ...
-    "assets.build": ["vite.build"],
-    "assets.deploy": ["vite.build", "phx.digest"]
-  ]
-end
+After installation, Vitex provides helper functions for your templates:
+
+```heex
+<!-- In your root layout -->
+<%= Vitex.vite_client() %> <!-- Enables HMR in development -->
+<%= Vitex.vite_assets("js/app.js") %>
+<%= Vitex.vite_assets("css/app.css") %>
 ```
 
-## Vendored Libraries
-
-PhoenixVite correctly handles vendored JavaScript libraries in the `assets/vendor/` directory. Simply import them using relative paths:
-
-```javascript
-// In your app.js
-import topbar from "../vendor/topbar"
-```
-
-The CommonJS plugin is configured to exclude the vendor directory from transformation, allowing UMD and other module formats to work correctly.
-
-## TLS/HTTPS Support
-
-PhoenixVite supports HTTPS in development for scenarios requiring secure connections (e.g., testing with external APIs, OAuth flows).
-
-### Environment Variables
-
-Configure TLS using environment variables:
+Start your Phoenix server:
 
 ```bash
-# .env or export directly
-VITE_DEV_SERVER_KEY=/path/to/key.pem
-VITE_DEV_SERVER_CERT=/path/to/cert.pem
+mix phx.server
 ```
 
-### Auto-Detection
+Vite will automatically start in development mode with HMR enabled.
 
-Enable automatic certificate detection in your config:
+### React Support
+
+To use React with Fast Refresh:
+
+```heex
+<!-- In your layout -->
+<%= Vitex.react_refresh() %> <!-- Add before your app scripts -->
+<%= Vitex.vite_assets("js/app.jsx") %>
+```
+
+Configure Vite for React:
 
 ```javascript
-phoenix({
-  // ... other options
-  detectTls: true, // Auto-detect from mkcert/Caddy
-  // or
-  detectTls: 'myapp.test', // Detect for specific host
-})
-```
+// vite.config.js
+import { defineConfig } from 'vite'
+import phoenix from '../deps/vitex/priv/static/vitex'
+import react from '@vitejs/plugin-react'
 
-The plugin searches for certificates in:
-- mkcert: `~/.local/share/mkcert/`
-- Caddy: `~/.local/share/caddy/certificates/local/`
-- Project: `priv/cert/`
-
-### Generating Certificates
-
-Using mkcert (recommended):
-
-```bash
-# Install mkcert
-brew install mkcert
-
-# Install root CA
-mkcert -install
-
-# Generate certificates
-mkcert -key-file priv/cert/key.pem -cert-file priv/cert/cert.pem localhost myapp.test
-```
-
-## Server-Side Rendering (SSR)
-
-PhoenixVite supports SSR for frameworks like React, Vue, or custom solutions.
-
-### Configuration
-
-```javascript
-phoenix({
-  input: 'js/app.js',
-  ssr: 'js/ssr.js', // SSR entry point
-  ssrOutputDirectory: '../priv/ssr', // SSR build output
-})
-```
-
-### Building for SSR
-
-```bash
-# Client build
-mix vite.build
-
-# SSR build
-mix vite build --ssr
-```
-
-### SSR Manifest
-
-SSR builds generate a separate manifest at `priv/ssr/ssr-manifest.json` for server-side asset resolution.
-
-## Environment Protection
-
-PhoenixVite includes safeguards to prevent running the dev server in production environments.
-
-### Automatic Detection
-
-The plugin detects and blocks dev server in:
-- CI environments (`CI=true`)
-- Production (`MIX_ENV=prod`, `NODE_ENV=production`)
-- Deployment platforms (Fly.io, Gigalixir, Heroku, Render, Railway)
-- Test environments (`MIX_ENV=test`)
-- Docker production (`DOCKER_ENV=production`)
-- Elixir releases (`RELEASE_NAME` present)
-
-### Bypassing Checks
-
-For special cases (e.g., integration tests):
-
-```bash
-PHOENIX_BYPASS_ENV_CHECK=1 mix phx.server
-```
-
-## Advanced Server Configuration
-
-### Custom HMR Configuration
-
-```javascript
 export default defineConfig({
-  server: {
-    hmr: {
-      host: 'localhost',
-      port: 5173,
-      protocol: 'ws', // or 'wss' for secure WebSocket
-    },
-    cors: {
-      // Custom CORS configuration
-      origin: ['http://localhost:4000', 'http://myapp.test'],
-    }
-  },
   plugins: [
+    react(),
     phoenix({
-      // plugin options...
+      input: ['js/app.jsx', 'css/app.css'],
+      reactRefresh: true,
+      // ... other options
     })
   ],
 })
 ```
 
-### Docker/Container Support
+### TypeScript Support
 
-PhoenixVite auto-configures for container environments:
-
-```bash
-# Detected automatically
-PHOENIX_DOCKER=1
-# or
-DOCKER_ENV=development
-
-# Custom port
-VITE_PORT=3000
-```
-
-In containers, the dev server:
-- Binds to `0.0.0.0` instead of `localhost`
-- Uses `strictPort: true` to ensure consistent port mapping
-- Properly configures HMR for container networking
-
-### Using PHX_HOST
-
-Set your application URL for proper CORS and dev server configuration:
-
-```bash
-PHX_HOST=https://myapp.test mix phx.server
-```
-
-## Full Page Refresh
-
-PhoenixVite includes automatic full page refresh when your Elixir files change. This feature is powered by the same `vite-plugin-full-reload` used in Laravel's Vite integration.
-
-### Default Configuration
-
-Simply set `refresh: true` in your plugin configuration to watch the default Phoenix paths:
+Vitex supports TypeScript out of the box:
 
 ```javascript
-phoenix({
-  // ... other options
-  refresh: true,
-})
-```
-
-This watches:
-- `lib/**/*.ex` - Elixir source files
-- `lib/**/*.heex` - HEEx templates  
-- `lib/**/*.eex` - EEx templates
-- `lib/**/*.leex` - LiveView templates
-- `lib/**/*.sface` - Surface templates
-- `priv/gettext/**/*.po` - Translation files
-
-### Custom Paths
-
-You can specify custom paths to watch:
-
-```javascript
-phoenix({
-  // ... other options
-  refresh: ['../lib/my_app_web/**/*.ex', '../priv/custom/**/*.json'],
-})
-```
-
-### Advanced Configuration
-
-For more control, use an object configuration:
-
-```javascript
-phoenix({
-  // ... other options
-  refresh: {
-    paths: ['../lib/**/*.ex'],
-    config: {
-      delay: 100, // Delay before refresh (ms)
-    }
-  },
-})
-```
-
-## Mix Tasks
-
-The following Mix tasks are available:
-
-- `mix vite` - Run any Vite command (e.g., `mix vite build`, `mix vite dev`)
-- `mix vite.build` - Build production assets (runs `vite build`)
-- `mix vite.ssr.build` - Build SSR assets (runs `vite build --ssr`)
-- `mix vite.install` - Install npm dependencies in the assets directory
-- `mix vite.setup` - Initial setup for Phoenix Vite in your project
-  - `--update-config` - Auto-update config/dev.exs
-  - `--ssr` - Configure SSR support
-  - `--tls` - Enable TLS auto-detection
-  - `--react` - Enable React Fast Refresh
-
-## Troubleshooting
-
-### WebSocket Connection Warning
-
-If you see this warning in your browser console:
-```
-[vite] Direct websocket connection fallback. Check out https://vite.dev/config/server-options.html#server-hmr to remove the previous connection error.
-```
-
-This happens because Phoenix's development server doesn't proxy WebSocket connections for Vite's HMR. The warning is harmless - Vite automatically falls back to a direct connection and HMR continues to work.
-
-To remove the warning, you can configure Vite to use a direct WebSocket connection from the start:
-
-```javascript
+// vite.config.js
 export default defineConfig({
-  server: {
-    hmr: {
-      port: 5173,
-    }
-  },
   plugins: [
-    // ... your plugins
+    phoenix({
+      input: ['js/app.ts', 'css/app.css'],
+      // ... other options
+    })
   ],
 })
 ```
 
-### Common Issues
+Create `assets/tsconfig.json`:
 
-**Certificate not found errors**: Run with `DEBUG=1` to see all searched paths:
-```bash
-DEBUG=1 mix phx.server
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["js/**/*"]
+}
 ```
 
-**CORS errors**: Ensure `PHX_HOST` is set to your application URL:
-```bash
-PHX_HOST=http://localhost:4000 mix phx.server
+### Inertia.js Integration
+
+For building SPAs with Inertia.js:
+
+```elixir
+# In your controller
+def index(conn, _params) do
+  conn
+  |> assign_prop(:users, Users.list_users())
+  |> render_inertia("Users/Index")
+end
 ```
 
-**Port conflicts**: The plugin will warn if Phoenix and Vite are on the same port. Use different ports or configure appropriately.
+```jsx
+// assets/js/pages/Users/Index.jsx
+import React from 'react'
 
-**WSL users**: The plugin detects WSL and provides specific configuration guidance.
+export default function UsersIndex({ users }) {
+  return (
+    <div>
+      <h1>Users</h1>
+      {users.map(user => (
+        <div key={user.id}>{user.name}</div>
+      ))}
+    </div>
+  )
+}
+```
 
-## Plugin Options
+### Server-Side Rendering (SSR)
 
-The Vite plugin accepts the following options:
-
-### Core Options
-
-- `input` (required): Entry points to compile
-- `publicDirectory`: Phoenix's public directory (default: `"priv/static"`)
-- `buildDirectory`: Public subdirectory for compiled assets (default: `"assets"`)
-- `hotFile`: Path to the hot file (default: `"priv/hot"`)
-- `manifestPath`: Path to manifest file (default: `"priv/static/assets/manifest.json"`)
-- `refresh`: Enable full page refresh on file changes (default: `false`)
-  - `true` - Watches default Phoenix paths (`.ex`, `.heex`, `.eex`, `.leex`, `.sface`, `.po` files)
-  - `false` - Disabled
-  - `string` or `string[]` - Custom paths to watch
-  - `object` - Advanced configuration with `paths` array and optional config
-- `reactRefresh`: Enable React Refresh support (default: `false`)
-
-### SSR Options
-
-- `ssr`: SSR entry point(s) (default: uses main `input` value)
-- `ssrOutputDirectory`: Directory for SSR builds (default: `"priv/ssr"`)
-
-### Advanced Options
-
-- `detectTls`: Auto-detect TLS certificates (default: `false`)
-  - `true` - Auto-detect certificates from mkcert/Caddy
-  - `false` - Disable TLS detection
-  - `string` - Detect certificates for specific host
-- `transformOnServe`: Function to transform code during development
-
-## Phoenix 1.8.0-rc.3 Compatibility
-
-PhoenixVite is fully compatible with Phoenix 1.8.0-rc.3 and newer versions. The setup task automatically:
-
-- Detects and uses Phoenix ESM modules (`.mjs` files)
-- Configures Tailwind CSS v4 with the new @tailwindcss/vite plugin
-- Handles CommonJS vendor files with @rollup/plugin-commonjs
-- Sets up proper aliases for Phoenix JavaScript dependencies
-
-### Generated Configuration
-
-For Phoenix 1.8.0-rc.3, the generated `vite.config.js` is now much simpler:
+Enable SSR in your Vite config:
 
 ```javascript
-import { defineConfig } from 'vite'
-import phoenix from '../deps/phoenix_vite/priv/static/phoenix_vite'
+// vite.config.js
+export default defineConfig({
+  plugins: [
+    phoenix({
+      input: ['js/app.js', 'css/app.css'],
+      ssr: 'js/ssr.js',
+      // ... other options
+    })
+  ],
+})
+```
+
+Build your SSR bundle:
+
+```bash
+mix vitex.ssr.build
+```
+
+## Configuration
+
+### Vite Configuration
+
+The Phoenix Vite plugin accepts the following options:
+
+```javascript
+phoenix({
+  // Entry files (required)
+  input: ['js/app.js', 'css/app.css'],
+
+  // Output directories
+  publicDirectory: '../priv/static',
+  buildDirectory: 'assets',
+
+  // Development server
+  hotFile: '../priv/hot',
+  detectTls: true, // Auto-detect local certificates
+
+  // Build options
+  manifestPath: '../priv/static/assets/manifest.json',
+
+  // Features
+  refresh: true, // Enable full page reload on blade/heex changes
+  reactRefresh: true, // Enable React Fast Refresh
+
+  // SSR
+  ssr: 'js/ssr.js', // SSR entry point
+})
+```
+
+### TLS/HTTPS Setup
+
+Vitex can automatically detect local TLS certificates. Enable with:
+
+```javascript
+phoenix({
+  detectTls: true,
+  // ... other options
+})
+```
+
+For manual TLS configuration, see the [TLS setup guide](priv/vitex/docs/tls-setup.md).
+
+### Environment Variables
+
+Vitex respects the following environment variables:
+
+- `NODE_ENV` - Set to "production" for production builds
+- `VITE_PORT` - Custom Vite dev server port
+- `VITE_DEV_SERVER_KEY` - Path to TLS key file
+- `VITE_DEV_SERVER_CERT` - Path to TLS certificate file
+
+## Mix Tasks
+
+Vitex provides several Mix tasks:
+
+### `mix vitex`
+Run Vite commands directly:
+
+```bash
+mix vitex build         # Build for production
+mix vitex dev          # Start dev server
+mix vitex preview      # Preview production build
+```
+
+### `mix vitex.install`
+Install and configure Vitex (requires Igniter):
+
+```bash
+mix vitex.install [options]
+
+Options:
+  --react        Enable React support
+  --typescript   Enable TypeScript
+  --inertia      Enable Inertia.js (includes React)
+  --tls          Enable TLS auto-detection
+  --ssr          Enable SSR support
+```
+
+### `mix vitex.build`
+Build assets for production:
+
+```bash
+mix vitex.build
+```
+
+### `mix vitex.ssr.build`
+Build SSR bundle:
+
+```bash
+mix vitex.ssr.build
+```
+
+## Helper Functions
+
+Vitex provides the following helper functions:
+
+### `Vitex.vite_assets/1`
+Generate script/link tags for entries:
+
+```elixir
+Vitex.vite_assets("js/app.js")
+# In dev: <script type="module" src="http://localhost:5173/js/app.js"></script>
+# In prod: <script type="module" src="/assets/app.123abc.js"></script>
+
+Vitex.vite_assets(["js/app.js", "js/admin.js"])
+# Generates tags for multiple entries
+```
+
+### `Vitex.vite_client/0`
+Enable HMR in development:
+
+```elixir
+Vitex.vite_client()
+# In dev: <script type="module" src="http://localhost:5173/@vite/client"></script>
+# In prod: <!-- nothing -->
+```
+
+### `Vitex.react_refresh/0`
+Enable React Fast Refresh:
+
+```elixir
+Vitex.react_refresh()
+# Injects React Refresh runtime in development
+```
+
+### `Vitex.asset_path/1`
+Get the URL for an asset:
+
+```elixir
+Vitex.asset_path("images/logo.png")
+# In dev: "http://localhost:5173/images/logo.png"
+# In prod: "/assets/logo.123abc.png"
+```
+
+### `Vitex.hmr_enabled?/0`
+Check if HMR is active:
+
+```elixir
+if Vitex.hmr_enabled?() do
+  # Development-specific code
+end
+```
+
+## Common Use Cases
+
+### Single Page Applications
+
+Build SPAs with client-side routing:
+
+```javascript
+// vite.config.js
+export default defineConfig({
+  plugins: [
+    phoenix({
+      input: ['js/app.jsx'],
+      // ... other options
+    })
+  ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom']
+        }
+      }
+    }
+  }
+})
+```
+
+### Tailwind CSS
+
+Vitex works great with Tailwind CSS v4:
+
+```javascript
+// vite.config.js
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [
     tailwindcss(),
     phoenix({
-      input: ['js/app.js', 'css/app.css'],
-      publicDirectory: '../priv/static',
-      buildDirectory: 'assets',
-      hotFile: '../priv/hot',
-      manifestPath: '../priv/static/assets/manifest.json',
-      refresh: true, // Enable full page refresh on Elixir file changes
+      // ... options
     })
   ],
 })
 ```
 
-The Phoenix Vite plugin now automatically:
-- Includes CommonJS plugin for vendor files
-- Configures aliases for Phoenix JavaScript dependencies
-- Detects and uses ESM versions when available
-- Sets up optimizeDeps for Phoenix modules
-- Handles all necessary build configuration
+### Multiple Entry Points
 
-## How It Works
+Support multiple sections of your app:
 
-Unlike the npm package approach, this Elixir library includes the Vite plugin as part of the package. When you add `phoenix_vite` as a dependency:
+```javascript
+phoenix({
+  input: [
+    'js/app.js',
+    'js/admin.js',
+    'css/app.css',
+    'css/admin.css'
+  ],
+  // ... other options
+})
+```
 
-1. The JavaScript plugin is pre-built and bundled in `priv/static/phoenix_vite/`
-2. The `PhoenixVite` module provides helpers for your templates
-3. The setup Mix task configures your project to use the plugin from deps
-4. Your `assets/vite.config.js` imports the plugin directly from the Elixir dependency
+### Code Splitting
 
-This approach means:
-- No need to install a separate npm package
-- The Vite plugin version is tied to the Elixir library version
-- Easier version management through Mix dependencies
-- Plugin code is distributed through Hex.pm with the Elixir package
-- All JavaScript dependencies are bundled (except Vite itself)
+Vite automatically handles code splitting for dynamic imports:
+
+```javascript
+// Lazy load a component
+const AdminPanel = lazy(() => import('./components/AdminPanel'))
+
+// Dynamic import based on route
+if (route === '/admin') {
+  const { initAdmin } = await import('./admin')
+  initAdmin()
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Vite dev server not starting**
+- Check that Node.js is installed (v18+ recommended)
+- Ensure `assets/package.json` exists
+- Run `npm install` in the assets directory
+
+**Assets not loading in production**
+- Run `mix vitex.build` before deploying
+- Check that manifest.json is generated in `priv/static/assets/`
+- Ensure `priv/static` is included in your release
+
+**HMR not working**
+- Verify Vite dev server is running (check `priv/hot` file)
+- Check browser console for connection errors
+- Ensure `Vitex.vite_client()` is included in your layout
+
+**TypeScript errors**
+- Vite doesn't type-check by default (for speed)
+- Use your editor's TypeScript integration
+- Run `tsc --noEmit` for full type checking
+
+### Getting Help
+
+- 📚 [Documentation](https://hexdocs.pm/vitex)
+- 💬 [Phoenix Forum](https://elixirforum.com/c/phoenix-forum)
+- 🐛 [Issue Tracker](https://github.com/nordbeam/vitex/issues)
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ### Development Setup
 
-If you need to modify the JavaScript plugin:
+```bash
+# Clone the repo
+git clone https://github.com/nordbeam/vitex.git
+cd vitex
 
-1. Make changes in `priv/phoenix_vite/src/`
-2. Run `./scripts/build_plugin.sh` to rebuild
-3. The built files are committed to the repository
-4. Test your changes with a Phoenix application
+# Install dependencies
+mix deps.get
+cd priv/vitex && npm install
 
-For more details, see [CLAUDE.md](CLAUDE.md) for development guidelines.
+# Run tests
+mix test
+
+# Build the Vite plugin
+cd priv/vitex && npm run build
+```
 
 ## License
 
-Copyright (c) 2025 Phoenix Framework Contributors
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Licensed under the MIT License. See [LICENSE](LICENSE) for details.
+Copyright (c) 2025 Nordbeam Team
+
+---
+
+<div align="center">
+Made with ❤️ by the Nordbeam Team
+</div>
