@@ -16,6 +16,8 @@ defmodule Mix.Tasks.Vitex.InstallTest do
        - |    </script>
        + |    <%= Vite.vite_client() %>
        + |
+       + |    <%= Vite.vite_assets("css/app.css") %>
+       + |
        + |    <%= Vite.vite_assets("js/app.js") %>
          |  </head>
       ...|
@@ -34,6 +36,66 @@ defmodule Mix.Tasks.Vitex.InstallTest do
         "lib/test_web/components/layouts/root.html.heex",
         "<%= Vite.react_refresh() %>"
       )
+    end
+
+    test "handles layout with Routes.static_path pattern" do
+      # Create a project with older Phoenix-style layout
+      project =
+        phx_test_project()
+        |> Igniter.update_file("lib/test_web/components/layouts/root.html.heex", fn source ->
+          Rewrite.Source.update(source, :content, fn _ ->
+            """
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="utf-8"/>
+                <title>Test</title>
+                <link rel="stylesheet" href={Routes.static_path(@conn, "/assets/app.css")}/>
+                <script defer type="text/javascript" src={Routes.static_path(@conn, "/assets/app.js")}></script>
+              </head>
+              <body>
+                <%= @inner_content %>
+              </body>
+            </html>
+            """
+          end)
+        end)
+        |> Install.update_root_layout()
+
+      # Assert that the layout has been updated
+      assert_file_contains(project, "lib/test_web/components/layouts/root.html.heex", "<%= Vite.vite_client() %>")
+      assert_file_contains(project, "lib/test_web/components/layouts/root.html.heex", "<%= Vite.vite_assets(\"css/app.css\") %>")
+      assert_file_contains(project, "lib/test_web/components/layouts/root.html.heex", "<%= Vite.vite_assets(\"js/app.js\") %>")
+    end
+
+    test "does not modify already configured layouts" do
+      # Create a project with already configured Vite helpers
+      project =
+        phx_test_project()
+        |> Igniter.update_file("lib/test_web/components/layouts/root.html.heex", fn source ->
+          Rewrite.Source.update(source, :content, fn _ ->
+            """
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <%= Vite.vite_client() %>
+                <%= Vite.vite_assets("css/app.css") %>
+                <%= Vite.vite_assets("js/app.js") %>
+              </head>
+              <body>
+                <%= @inner_content %>
+              </body>
+            </html>
+            """
+          end)
+        end)
+        |> Install.update_root_layout()
+
+      # Assert that the layout remains unchanged (no duplicate vite_client calls)
+      content = Rewrite.Source.get(project.rewrite.sources["lib/test_web/components/layouts/root.html.heex"], :content)
+      # Count occurrences of vite_client - should be exactly 1
+      client_count = content |> String.split("vite_client()") |> length() |> Kernel.-(1)
+      assert client_count == 1
     end
   end
 
