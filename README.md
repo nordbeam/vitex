@@ -1,6 +1,8 @@
-# Vitex
 
 <div align="center">
+<h1 align="center">
+# Vitex
+</h1>
 <img src="https://raw.githubusercontent.com/nordbeam/vitex/main/logo.svg" width="200px"/>
 
 [![Hex.pm](https://img.shields.io/hexpm/v/vitex.svg)](https://hex.pm/packages/vitex)
