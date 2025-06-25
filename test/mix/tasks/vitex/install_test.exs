@@ -63,9 +63,23 @@ defmodule Mix.Tasks.Vitex.InstallTest do
         |> Install.update_root_layout()
 
       # Assert that the layout has been updated
-      assert_file_contains(project, "lib/test_web/components/layouts/root.html.heex", "<%= Vite.vite_client() %>")
-      assert_file_contains(project, "lib/test_web/components/layouts/root.html.heex", "<%= Vite.vite_assets(\"css/app.css\") %>")
-      assert_file_contains(project, "lib/test_web/components/layouts/root.html.heex", "<%= Vite.vite_assets(\"js/app.js\") %>")
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_client() %>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"css/app.css\") %>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"js/app.js\") %>"
+      )
     end
 
     test "does not modify already configured layouts" do
@@ -92,7 +106,12 @@ defmodule Mix.Tasks.Vitex.InstallTest do
         |> Install.update_root_layout()
 
       # Assert that the layout remains unchanged (no duplicate vite_client calls)
-      content = Rewrite.Source.get(project.rewrite.sources["lib/test_web/components/layouts/root.html.heex"], :content)
+      content =
+        Rewrite.Source.get(
+          project.rewrite.sources["lib/test_web/components/layouts/root.html.heex"],
+          :content
+        )
+
       # Count occurrences of vite_client - should be exactly 1
       client_count = content |> String.split("vite_client()") |> length() |> Kernel.-(1)
       assert client_count == 1

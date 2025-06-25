@@ -554,34 +554,35 @@ if Code.ensure_loaded?(Igniter) do
                 content
               else
                 # Replace Phoenix asset helpers with Vite helpers
-                updated = content
-                # Pattern 1: Both CSS and JS with ~p sigil (most common in new Phoenix apps)
-                |> String.replace(
-                  ~r/(\s*)<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>\s*\n\s*<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*<\/script>/,
-                  "\\1<%= Vite.vite_client() %>\n\\1<%= Vite.vite_assets(\"css/app.css\") %>\n\\1<%= Vite.vite_assets(\"js/app.js\") %>"
-                )
-                # Pattern 2: Just CSS with ~p sigil (in case JS is loaded elsewhere)
-                |> String.replace(
-                  ~r/<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>/,
-                  "<%= Vite.vite_assets(\"css/app.css\") %>"
-                )
-                # Pattern 3: Just JS with ~p sigil
-                |> String.replace(
-                  ~r/<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*<\/script>/,
-                  "<%= Vite.vite_assets(\"js/app.js\") %>"
-                )
-                # Pattern 4: Routes.static_path pattern (older Phoenix)
-                |> String.replace(
-                  ~r/<link[^>]+href={Routes\.static_path\(@conn,\s*"\/assets\/app\.css"\)}[^>]*>/,
-                  "<%= Vite.vite_assets(\"css/app.css\") %>"
-                )
-                |> String.replace(
-                  ~r/<script[^>]+src={Routes\.static_path\(@conn,\s*"\/assets\/app\.js"\)}[^>]*>\s*<\/script>/,
-                  "<%= Vite.vite_assets(\"js/app.js\") %>"
-                )
-                
+                updated =
+                  content
+                  # Pattern 1: Both CSS and JS with ~p sigil (most common in new Phoenix apps)
+                  |> String.replace(
+                    ~r/(\s*)<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>\s*\n\s*<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*<\/script>/,
+                    "\\1<%= Vite.vite_client() %>\n\\1<%= Vite.vite_assets(\"css/app.css\") %>\n\\1<%= Vite.vite_assets(\"js/app.js\") %>"
+                  )
+                  # Pattern 2: Just CSS with ~p sigil (in case JS is loaded elsewhere)
+                  |> String.replace(
+                    ~r/<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>/,
+                    "<%= Vite.vite_assets(\"css/app.css\") %>"
+                  )
+                  # Pattern 3: Just JS with ~p sigil
+                  |> String.replace(
+                    ~r/<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*<\/script>/,
+                    "<%= Vite.vite_assets(\"js/app.js\") %>"
+                  )
+                  # Pattern 4: Routes.static_path pattern (older Phoenix)
+                  |> String.replace(
+                    ~r/<link[^>]+href={Routes\.static_path\(@conn,\s*"\/assets\/app\.css"\)}[^>]*>/,
+                    "<%= Vite.vite_assets(\"css/app.css\") %>"
+                  )
+                  |> String.replace(
+                    ~r/<script[^>]+src={Routes\.static_path\(@conn,\s*"\/assets\/app\.js"\)}[^>]*>\s*<\/script>/,
+                    "<%= Vite.vite_assets(\"js/app.js\") %>"
+                  )
+
                 # Add vite_client if not already present and we made replacements
-                updated = 
+                updated =
                   if not String.contains?(updated, "vite_client") and updated != content do
                     String.replace(
                       updated,
