@@ -8,8 +8,8 @@ Vitex
 [![Hex.pm](https://img.shields.io/hexpm/v/vitex.svg)](https://hex.pm/packages/vitex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/vitex/)
 [![License](https://img.shields.io/hexpm/l/vitex.svg)](https://github.com/nordbeam/vitex/blob/main/LICENSE)
-[![Elixir Version](https://img.shields.io/badge/elixir-~%3E%201.13-purple)](https://elixir-lang.org/)
-[![Phoenix Version](https://img.shields.io/badge/phoenix-~%3E%201.7-orange)](https://www.phoenixframework.org/)
+[![Elixir Version](https://img.shields.io/badge/elixir-~%3E%201.14-purple)](https://elixir-lang.org/)
+[![Phoenix Version](https://img.shields.io/badge/phoenix-~%3E%201.8-orange)](https://www.phoenixframework.org/)
 
 **Phoenix integration for Vite - a fast frontend build tool**
 
