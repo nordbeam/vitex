@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.2 (2025-06-25)
+
+### Bug Fixes
+
+* Fixed TypeScript file extension issue - When using `--inertia --typescript`, the installer now correctly creates `Home.tsx` instead of `Home.jsx`
+* Fixed Inertia root layout creation - The installer now properly creates `inertia_root.html.heex` in the layouts directory when using `--inertia`
+
 ## v0.1.1 (2025-06-25)
 
 ### Enhancements

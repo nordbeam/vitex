@@ -523,23 +523,28 @@ if Code.ensure_loaded?(Igniter) do
       inertia = igniter.args.options[:inertia] || false
 
       if inertia do
-        # For Inertia, we need a completely different root layout
+        # For Inertia, we need to create a separate inertia_root layout
+        inertia_layout_path =
+          Path.join([
+            "lib",
+            web_dir(igniter),
+            "components",
+            "layouts",
+            "inertia_root.html.heex"
+          ])
+
         content = inertia_root_html(igniter)
 
-        if Igniter.exists?(igniter, file_path) do
-          igniter
-          |> Igniter.add_warning("""
-          The root layout needs to be updated for Inertia.js support.
-          Please update #{file_path} with the following content:
+        igniter
+        |> Igniter.create_new_file(inertia_layout_path, content, on_exists: :skip)
+        |> Igniter.add_notice("""
+        Created Inertia root layout at #{inertia_layout_path}
 
-          #{content}
-          """)
-          |> Igniter.create_new_file("_inertia_root_layout_example.html.heex", content,
-            on_exists: :skip
-          )
-        else
-          Igniter.create_new_file(igniter, file_path, content)
-        end
+        To use Inertia in your application:
+        1. Update your router to use the Inertia plug
+        2. In your controllers, use `render_inertia(conn, "PageName")` 
+        3. Create React components in assets/js/pages/
+        """)
       else
         react = igniter.args.options[:react] || false
 
@@ -782,20 +787,43 @@ if Code.ensure_loaded?(Igniter) do
 
     defp maybe_create_pages_directory(igniter) do
       # Create an example page component
-      example_content = """
-      import React from "react";
+      typescript = igniter.args.options[:typescript] || false
+      extension = if typescript, do: "tsx", else: "jsx"
 
-      export default function Home({ greeting }) {
-        return (
-          <div>
-            <h1>{greeting}</h1>
-            <p>Welcome to your Inertia.js + Phoenix application!</p>
-          </div>
-        );
-      }
-      """
+      example_content =
+        if typescript do
+          """
+          import React from "react";
 
-      Igniter.create_new_file(igniter, "assets/js/pages/Home.jsx", example_content,
+          interface HomeProps {
+            greeting: string;
+          }
+
+          export default function Home({ greeting }: HomeProps) {
+            return (
+              <div>
+                <h1>{greeting}</h1>
+                <p>Welcome to your Inertia.js + Phoenix application!</p>
+              </div>
+            );
+          }
+          """
+        else
+          """
+          import React from "react";
+
+          export default function Home({ greeting }) {
+            return (
+              <div>
+                <h1>{greeting}</h1>
+                <p>Welcome to your Inertia.js + Phoenix application!</p>
+              </div>
+            );
+          }
+          """
+        end
+
+      Igniter.create_new_file(igniter, "assets/js/pages/Home.#{extension}", example_content,
         on_exists: :skip
       )
     end
@@ -1100,7 +1128,7 @@ if Code.ensure_loaded?(Igniter) do
       - Create page components in assets/js/pages/
       - In your controllers, use `assign_prop(conn, :prop, ...) |> render_inertia("PageName")`
       - The Inertia plug and helpers have been added to your application
-      - Example page created at assets/js/pages/Home.jsx#{extra_config}
+      - Example page created at assets/js/pages/Home.#{if options[:typescript], do: "tsx", else: "jsx"}#{extra_config}
 
       To test your setup:
       1. Update a controller action to use Inertia:
