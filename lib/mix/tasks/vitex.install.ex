@@ -22,7 +22,7 @@ if Code.ensure_loaded?(Igniter) do
         --typescript         Enable TypeScript support
         --inertia            Enable Inertia.js support (automatically enables React)
         --shadcn             Enable shadcn/ui component library (requires --typescript and either --react or --inertia)
-        --base-color         Base color for shadcn/ui theme (neutral, gray, zinc, stone, slate) - defaults to zinc
+        --base-color         Base color for shadcn/ui theme (neutral,gray, zinc, stone, slate) - defaults to neutral
         --bun                Use Bun as the package manager instead of npm
         --yes                Don't prompt for confirmations
 
@@ -527,10 +527,7 @@ if Code.ensure_loaded?(Igniter) do
           """
           resolve: {
             alias: {
-              "@": path.resolve(__dirname, "./js"),
-              "@/components": path.resolve(__dirname, "./js/components"),
-              "@/lib": path.resolve(__dirname, "./js/lib"),
-              "@/hooks": path.resolve(__dirname, "./js/hooks")
+              "@": path.resolve(__dirname, "./js")
             }
           }
           """
@@ -1514,6 +1511,10 @@ if Code.ensure_loaded?(Igniter) do
       """
       {
         "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "@/*": ["./js/*"]
+          },
           "target": "ES2020",
           "useDefineForClassFields": true,
           "module": "ESNext",
@@ -1540,6 +1541,10 @@ if Code.ensure_loaded?(Igniter) do
       """
       {
         "compilerOptions": {
+          "baseUrl": ".",
+          "paths": {
+            "@/*": ["./js/*"]
+          },
           "target": "ES2020",
           "useDefineForClassFields": true,
           "lib": ["ES2020", "DOM", "DOM.Iterable"],
@@ -1730,7 +1735,7 @@ if Code.ensure_loaded?(Igniter) do
     def maybe_setup_shadcn(igniter) do
       if igniter.args.options[:shadcn] do
         # Queue the shadcn init command to run after npm install
-        base_color = igniter.args.options[:base_color] || "zinc"
+        base_color = igniter.args.options[:base_color] || "neutral"
 
         # Determine which package manager command to use
         shadcn_cmd =
@@ -1739,23 +1744,23 @@ if Code.ensure_loaded?(Igniter) do
               [
                 "cmd",
                 [
-                  "cd assets && bunx --bun shadcn@latest init -y --base-color #{base_color} --css-variables --no-src-dir"
+                  "cd assets && bunx --bun shadcn@latest init -y --base-color #{base_color} --css-variables"
                 ]
               ]
 
-            "npm install" ->
-              [
-                "cmd",
-                [
-                  "cd assets && npx shadcn@latest init -y --base-color #{base_color} --css-variables --no-src-dir"
-                ]
-              ]
+            install_cmd when is_binary(install_cmd) ->
+              runner =
+                cond do
+                  install_cmd =~ "bun" -> "bunx"
+                  install_cmd =~ "pnpm" -> "pnpm dlx"
+                  install_cmd =~ "yarn" -> "yarn dlx"
+                  true -> "npx"
+                end
 
-            _ ->
               [
                 "cmd",
                 [
-                  "cd assets && npx shadcn@latest init -y --base-color #{base_color} --css-variables --no-src-dir"
+                  "cd assets && #{runner} shadcn@latest init -y --base-color #{base_color} --css-variables"
                 ]
               ]
           end
