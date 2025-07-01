@@ -236,7 +236,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
         |> Map.put(:args, %{options: [typescript: true]})
         |> Install.update_package_json()
 
-      # Assert that TypeScript dependencies are added  
+      # Assert that TypeScript dependencies are added
       assert_has_task(project, "cmd", ["npm install --prefix assets"])
 
       # Check for TypeScript types
@@ -944,7 +944,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that shadcn init command is queued
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables --no-src-dir"
+        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables"
       ])
     end
 
@@ -956,7 +956,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that shadcn init command is queued with bunx
       assert_has_task(project, "cmd", [
-        "cd assets && bunx --bun shadcn@latest init -y --base-color zinc --css-variables --no-src-dir"
+        "cd assets && bunx --bun shadcn@latest init -y --base-color zinc --css-variables"
       ])
     end
 
@@ -970,7 +970,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that custom base color is used
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color slate --css-variables --no-src-dir"
+        "cd assets && npx shadcn@latest init -y --base-color slate --css-variables"
       ])
     end
 
@@ -1017,7 +1017,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify shadcn init command is queued
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables --no-src-dir"
+        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables"
       ])
 
       # Verify shadcn notice is added
@@ -1043,7 +1043,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify shadcn init command is queued with custom color
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color stone --css-variables --no-src-dir"
+        "cd assets && npx shadcn@latest init -y --base-color stone --css-variables"
       ])
 
       # Verify Inertia setup is also present
