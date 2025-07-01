@@ -492,16 +492,18 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       project =
         phx_test_project()
         |> Map.put(:args, %{options: [inertia: true]})
-        |> Install.igniter()  # Use the full igniter pipeline
+        # Use the full igniter pipeline
+        |> Install.igniter()
 
       # First check if the file exists
       controller_source = project.rewrite.sources["lib/test_web/controllers/page_controller.ex"]
-      
+
       if controller_source do
         content = Rewrite.Source.get(controller_source, :content)
         # Check that PageController has inertia action
         assert String.contains?(content, "def inertia(conn, _params)"),
                "Expected PageController to contain inertia action, but content was:\n#{content}"
+
         assert String.contains?(content, "render_inertia(\"Home\")"),
                "Expected PageController to contain render_inertia call"
       else
@@ -522,13 +524,13 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       # Check that both actions exist in the controller
       controller_source = project.rewrite.sources["lib/test_web/controllers/page_controller.ex"]
       assert controller_source != nil, "PageController should exist"
-      
+
       content = Rewrite.Source.get(controller_source, :content)
-      
+
       # The original home function should still be there
       assert String.contains?(content, "def home(conn, _params)"),
              "Expected original home function to be preserved"
-      
+
       # The inertia function should be added
       assert String.contains?(content, "def inertia(conn, _params)"),
              "Expected inertia function to be added"
@@ -542,8 +544,18 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that inertia_root.html.heex is created
       assert_creates(project, "lib/test_web/components/layouts/inertia_root.html.heex")
-      assert_file_contains(project, "lib/test_web/components/layouts/inertia_root.html.heex", "<.inertia_title>")
-      assert_file_contains(project, "lib/test_web/components/layouts/inertia_root.html.heex", "<.inertia_head")
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/inertia_root.html.heex",
+        "<.inertia_title>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/inertia_root.html.heex",
+        "<.inertia_head"
+      )
     end
 
     test "does not create inertia_root layout when --inertia is not specified" do
@@ -631,10 +643,10 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       # Verify Inertia-specific files are not created
       refute_creates_file(project, "lib/test_web/components/layouts/inertia_root.html.heex")
       refute_creates_file(project, "assets/js/pages/Home.jsx")
-      
+
       # Verify Inertia is not in dependencies
       refute_file_contains(project, "assets/package.json", "@inertiajs/react")
-      
+
       # Verify no Inertia imports in web.ex
       refute_file_contains(project, "lib/test_web.ex", "import Inertia")
     end
@@ -701,21 +713,27 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify Inertia setup
       assert_creates(project, "lib/test_web/components/layouts/inertia_root.html.heex")
-      assert_file_contains(project, "lib/test_web/controllers/page_controller.ex", "def inertia(conn, _params)")
+
+      assert_file_contains(
+        project,
+        "lib/test_web/controllers/page_controller.ex",
+        "def inertia(conn, _params)"
+      )
+
       assert_creates(project, "assets/js/pages/Home.tsx")
       assert_creates(project, "assets/js/app.tsx")
-      
+
       # Verify Inertia app structure
       assert_file_contains(project, "assets/js/app.tsx", "createInertiaApp")
       assert_file_contains(project, "assets/js/app.tsx", "import(`./pages/${name}.tsx`)")
-      
+
       # Verify Inertia dependencies
       assert_file_contains(project, "assets/package.json", "@inertiajs/react")
-      
+
       # Verify React is also enabled (Inertia implies React)
       assert_file_contains(project, "assets/package.json", "react")
       assert_file_contains(project, "assets/package.json", "@vitejs/plugin-react")
-      
+
       # Verify Inertia config
       assert_file_contains(project, "config/config.exs", "config :inertia")
       assert_file_contains(project, "config/config.exs", "camelize_props: true")

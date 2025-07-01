@@ -133,7 +133,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp update_router_pipeline(igniter) do
       web_module = web_module_name(igniter)
-      
+
       inertia_pipeline = """
         plug :accepts, ["html"]
         plug :fetch_session
@@ -167,7 +167,7 @@ if Code.ensure_loaded?(Igniter) do
     defp setup_page_controller(igniter) do
       web_module = Igniter.Libs.Phoenix.web_module(igniter)
       controller_module = Module.concat([web_module, PageController])
-      
+
       # Check if the PageController already exists
       case Igniter.Project.Module.find_module(igniter, controller_module) do
         {:ok, {igniter, _source, _zipper}} ->
@@ -179,28 +179,29 @@ if Code.ensure_loaded?(Igniter) do
               {:ok, _zipper} ->
                 # Function already exists, don't modify
                 {:ok, zipper}
-              
+
               :error ->
                 # Function doesn't exist, add it
                 inertia_function = """
-                
+
                 def inertia(conn, _params) do
                   conn
                   |> assign_prop(:greeting, "Hello from Inertia.js and Phoenix!")
                   |> render_inertia("Home")
                 end
                 """
-                
+
                 # Try to add the function after the last def in the module
                 case Igniter.Code.Common.move_to_last(zipper, fn zipper ->
-                  node = Sourceror.Zipper.node(zipper)
-                  match?({:def, _, _}, node) or match?({:defp, _, _}, node)
-                end) do
+                       node = Sourceror.Zipper.node(zipper)
+                       match?({:def, _, _}, node) or match?({:defp, _, _}, node)
+                     end) do
                   {:ok, zipper} ->
                     case Igniter.Code.Common.add_code(zipper, inertia_function) do
                       {:ok, updated_zipper} -> {:ok, updated_zipper}
                       updated_zipper -> {:ok, updated_zipper}
                     end
+
                   :error ->
                     # If no defs found, return unchanged
                     {:ok, zipper}
@@ -209,19 +210,19 @@ if Code.ensure_loaded?(Igniter) do
           end)
           |> Igniter.add_notice("""
           Added inertia action to existing PageController.
-          
+
           The action renders the Home component with a greeting prop.
           """)
-        
+
         {:error, igniter} ->
           # Controller doesn't exist, create it
-          controller_path = 
+          controller_path =
             controller_module
             |> inspect()
             |> String.replace(".", "/")
             |> Macro.underscore()
             |> then(&"lib/#{&1}.ex")
-          
+
           controller_content = """
           defmodule #{inspect(controller_module)} do
             use #{inspect(web_module)}, :controller
@@ -233,12 +234,12 @@ if Code.ensure_loaded?(Igniter) do
             end
           end
           """
-          
+
           igniter
           |> Igniter.create_new_file(controller_path, controller_content)
           |> Igniter.add_notice("""
           Created PageController with Inertia action at #{controller_path}
-          
+
           The controller renders the Home component with a greeting prop.
           """)
       end
