@@ -1744,7 +1744,7 @@ if Code.ensure_loaded?(Igniter) do
               [
                 "cmd",
                 [
-                  "cd assets && bunx --bun shadcn@latest init -y --base-color #{base_color} --css-variables"
+                  "bunx --bun shadcn@latest init -y --base-color #{base_color} --css-variables --cwd assets"
                 ]
               ]
 
@@ -1760,7 +1760,7 @@ if Code.ensure_loaded?(Igniter) do
               [
                 "cmd",
                 [
-                  "cd assets && #{runner} shadcn@latest init -y --base-color #{base_color} --css-variables"
+                  "#{runner} shadcn@latest init -y --base-color #{base_color} --css-variables --cwd assets"
                 ]
               ]
           end

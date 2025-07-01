@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.3 (2025-07-01)
+
+### Bug Fixes
+
+* Fixed shadcn/ui initialization command to use `--cwd` flag instead of `cd`
+  * This prevents the "Would you like to start a new project?" prompt
+  * shadcn init now correctly runs in the assets directory
+  * Updated all related tests to match the new command format
+
 ## v0.2.0 (2025-07-01)
 
 ### Features

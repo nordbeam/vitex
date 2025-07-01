@@ -1,7 +1,7 @@
 defmodule Vitex.MixProject do
   use Mix.Project
 
-  @version "0.2.2"
+  @version "0.2.3"
   @source_url "https://github.com/nordbeam/vitex"
 
   def project do

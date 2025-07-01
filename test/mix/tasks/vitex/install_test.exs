@@ -928,7 +928,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that shadcn init command is queued
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color neutral --css-variables"
+        "npx shadcn@latest init -y --base-color neutral --css-variables --cwd assets"
       ])
     end
 
@@ -940,7 +940,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that shadcn init command is queued with bunx
       assert_has_task(project, "cmd", [
-        "cd assets && bunx --bun shadcn@latest init -y --base-color neutral --css-variables"
+        "bunx --bun shadcn@latest init -y --base-color neutral --css-variables --cwd assets"
       ])
     end
 
@@ -954,7 +954,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that custom base color is used
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color slate --css-variables"
+        "npx shadcn@latest init -y --base-color slate --css-variables --cwd assets"
       ])
     end
 
@@ -1001,7 +1001,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify shadcn init command is queued
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color neutral --css-variables"
+        "npx shadcn@latest init -y --base-color neutral --css-variables --cwd assets"
       ])
 
       # Verify shadcn notice is added
@@ -1027,7 +1027,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify shadcn init command is queued with custom color
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color stone --css-variables"
+        "npx shadcn@latest init -y --base-color stone --css-variables --cwd assets"
       ])
 
       # Verify Inertia setup is also present
