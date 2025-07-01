@@ -97,6 +97,7 @@ if Code.ensure_loaded?(Igniter) do
         |> setup_inertia_html_helpers()
         |> setup_inertia_router()
         |> add_inertia_config()
+        |> setup_page_controller()
       else
         igniter
       end
@@ -125,7 +126,122 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp setup_inertia_router(igniter) do
-      Igniter.Libs.Phoenix.append_to_pipeline(igniter, :browser, "plug Inertia.Plug")
+      igniter
+      |> Igniter.Libs.Phoenix.append_to_pipeline(:browser, "plug Inertia.Plug")
+      |> update_router_pipeline()
+    end
+
+    defp update_router_pipeline(igniter) do
+      web_module = web_module_name(igniter)
+      
+      inertia_pipeline = """
+        plug :accepts, ["html"]
+        plug :fetch_session
+        plug :fetch_live_flash
+        plug :put_root_layout, html: {#{web_module}.Layouts, :inertia_root}
+        plug :protect_from_forgery
+        plug :put_secure_browser_headers
+        plug Inertia.Plug
+      """
+
+      igniter
+      |> Igniter.Libs.Phoenix.add_pipeline(
+        :inertia,
+        inertia_pipeline,
+        arg2: web_module
+      )
+      |> Igniter.Libs.Phoenix.add_scope(
+        "/inertia",
+        """
+        pipe_through :inertia
+        get "/", PageController, :inertia
+        """,
+        arg2: web_module
+      )
+    end
+
+    defp web_module_name(igniter) do
+      Igniter.Libs.Phoenix.web_module(igniter)
+    end
+
+    defp setup_page_controller(igniter) do
+      web_module = Igniter.Libs.Phoenix.web_module(igniter)
+      controller_module = Module.concat([web_module, PageController])
+      
+      # Check if the PageController already exists
+      case Igniter.Project.Module.find_module(igniter, controller_module) do
+        {:ok, {igniter, _source, _zipper}} ->
+          # Controller exists, add the inertia function to it
+          igniter
+          |> Igniter.Project.Module.find_and_update_module!(controller_module, fn zipper ->
+            # Check if the inertia function already exists
+            case Igniter.Code.Function.move_to_def(zipper, :inertia, 2) do
+              {:ok, _zipper} ->
+                # Function already exists, don't modify
+                {:ok, zipper}
+              
+              :error ->
+                # Function doesn't exist, add it
+                inertia_function = """
+                
+                def inertia(conn, _params) do
+                  conn
+                  |> assign_prop(:greeting, "Hello from Inertia.js and Phoenix!")
+                  |> render_inertia("Home")
+                end
+                """
+                
+                # Try to add the function after the last def in the module
+                case Igniter.Code.Common.move_to_last(zipper, fn zipper ->
+                  node = Sourceror.Zipper.node(zipper)
+                  match?({:def, _, _}, node) or match?({:defp, _, _}, node)
+                end) do
+                  {:ok, zipper} ->
+                    case Igniter.Code.Common.add_code(zipper, inertia_function) do
+                      {:ok, updated_zipper} -> {:ok, updated_zipper}
+                      updated_zipper -> {:ok, updated_zipper}
+                    end
+                  :error ->
+                    # If no defs found, return unchanged
+                    {:ok, zipper}
+                end
+            end
+          end)
+          |> Igniter.add_notice("""
+          Added inertia action to existing PageController.
+          
+          The action renders the Home component with a greeting prop.
+          """)
+        
+        {:error, igniter} ->
+          # Controller doesn't exist, create it
+          controller_path = 
+            controller_module
+            |> inspect()
+            |> String.replace(".", "/")
+            |> Macro.underscore()
+            |> then(&"lib/#{&1}.ex")
+          
+          controller_content = """
+          defmodule #{inspect(controller_module)} do
+            use #{inspect(web_module)}, :controller
+
+            def inertia(conn, _params) do
+              conn
+              |> assign_prop(:greeting, "Hello from Inertia.js and Phoenix!")
+              |> render_inertia("Home")
+            end
+          end
+          """
+          
+          igniter
+          |> Igniter.create_new_file(controller_path, controller_content)
+          |> Igniter.add_notice("""
+          Created PageController with Inertia action at #{controller_path}
+          
+          The controller renders the Home component with a greeting prop.
+          """)
+      end
     end
 
     defp add_inertia_config(igniter) do
@@ -542,7 +658,7 @@ if Code.ensure_loaded?(Igniter) do
 
         To use Inertia in your application:
         1. Update your router to use the Inertia plug
-        2. In your controllers, use `render_inertia(conn, "PageName")` 
+        2. In your controllers, use `render_inertia(conn, "PageName")`
         3. Create React components in assets/js/pages/
         """)
       else
@@ -651,6 +767,7 @@ if Code.ensure_loaded?(Igniter) do
           <.inertia_title><%= assigns[:page_title] %></.inertia_title>
           <.inertia_head content={@inertia_head} />
           <%= Vite.vite_client() %>
+          <%= Vite.react_refresh() %>
           <%= Vite.vite_assets("css/app.css") %>#{app_scripts}
         </head>
         <body>
@@ -789,43 +906,452 @@ if Code.ensure_loaded?(Igniter) do
       # Create an example page component
       typescript = igniter.args.options[:typescript] || false
       extension = if typescript, do: "tsx", else: "jsx"
+      {igniter, has_tailwind} = detect_tailwind(igniter)
 
       example_content =
         if typescript do
-          """
-          import React from "react";
-
-          interface HomeProps {
-            greeting: string;
-          }
-
-          export default function Home({ greeting }: HomeProps) {
-            return (
-              <div>
-                <h1>{greeting}</h1>
-                <p>Welcome to your Inertia.js + Phoenix application!</p>
-              </div>
-            );
-          }
-          """
+          build_home_component_tsx(has_tailwind)
         else
-          """
-          import React from "react";
-
-          export default function Home({ greeting }) {
-            return (
-              <div>
-                <h1>{greeting}</h1>
-                <p>Welcome to your Inertia.js + Phoenix application!</p>
-              </div>
-            );
-          }
-          """
+          build_home_component_jsx(has_tailwind)
         end
 
       Igniter.create_new_file(igniter, "assets/js/pages/Home.#{extension}", example_content,
         on_exists: :skip
       )
+    end
+
+    defp build_home_component_tsx(has_tailwind) do
+      if has_tailwind do
+        """
+        import React from "react";
+
+        interface HomeProps {
+          greeting: string;
+        }
+
+        export default function Home({ greeting }: HomeProps) {
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+              <div className="container mx-auto px-4 py-16">
+                {/* Hero Section */}
+                <div className="text-center mb-16">
+                  <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-4">
+                    {greeting}
+                  </h1>
+                  <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+                    Built with Phoenix, Inertia.js, React, and Vite
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <a
+                      href="https://hexdocs.pm/phoenix"
+                      className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                    >
+                      Phoenix Docs
+                    </a>
+                    <a
+                      href="https://inertiajs.com"
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Inertia.js Docs
+                    </a>
+                  </div>
+                </div>
+
+                {/* Features Grid */}
+                <div className="grid md:grid-cols-3 gap-8 mb-16">
+                  <FeatureCard
+                    title="⚡ Lightning Fast"
+                    description="Vite provides instant HMR and blazing fast builds for the best developer experience."
+                  />
+                  <FeatureCard
+                    title="🚀 Modern Stack"
+                    description="Phoenix LiveView + Inertia.js + React creates powerful, reactive applications."
+                  />
+                  <FeatureCard
+                    title="🛡️ Type Safe"
+                    description="Full TypeScript support ensures your code is robust and maintainable."
+                  />
+                </div>
+
+                {/* Code Example */}
+                <div className="bg-gray-900 rounded-lg p-6 mb-16">
+                  <h2 className="text-2xl font-bold text-white mb-4">Quick Start</h2>
+                  <pre className="text-green-400 overflow-x-auto">
+                    <code>{`# Create a new Inertia page
+        def index(conn, _params) do
+          conn
+          |> assign_prop(:users, Accounts.list_users())
+          |> assign_prop(:title, "User List")
+          |> render_inertia("Users/Index")
+        end`}</code>
+                  </pre>
+                </div>
+
+                {/* Next Steps */}
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                    Ready to build something amazing?
+                  </h2>
+                  <p className="text-lg text-gray-600 dark:text-gray-300">
+                    Start by editing <code className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">assets/js/pages/Home.tsx</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        interface FeatureCardProps {
+          title: string;
+          description: string;
+        }
+
+        function FeatureCard({ title, description }: FeatureCardProps) {
+          return (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                {title}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                {description}
+              </p>
+            </div>
+          );
+        }
+        """
+      else
+        """
+        import React from "react";
+
+        interface HomeProps {
+          greeting: string;
+        }
+
+        export default function Home({ greeting }: HomeProps) {
+          return (
+            <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f3e7ff, #e0e7ff)', padding: '2rem' }}>
+              <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                {/* Hero Section */}
+                <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                  <h1 style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#1a202c', marginBottom: '1rem' }}>
+                    {greeting}
+                  </h1>
+                  <p style={{ fontSize: '1.25rem', color: '#4a5568', marginBottom: '2rem' }}>
+                    Built with Phoenix, Inertia.js, React, and Vite
+                  </p>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <a
+                      href="https://hexdocs.pm/phoenix"
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#f97316',
+                        color: 'white',
+                        borderRadius: '0.5rem',
+                        textDecoration: 'none',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ea580c'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f97316'}
+                    >
+                      Phoenix Docs
+                    </a>
+                    <a
+                      href="https://inertiajs.com"
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#9333ea',
+                        color: 'white',
+                        borderRadius: '0.5rem',
+                        textDecoration: 'none',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#7c3aed'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#9333ea'}
+                    >
+                      Inertia.js Docs
+                    </a>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
+                  <FeatureCard
+                    title="⚡ Lightning Fast"
+                    description="Vite provides instant HMR and blazing fast builds for the best developer experience."
+                  />
+                  <FeatureCard
+                    title="🚀 Modern Stack"
+                    description="Phoenix LiveView + Inertia.js + React creates powerful, reactive applications."
+                  />
+                  <FeatureCard
+                    title="🛡️ Type Safe"
+                    description="Full TypeScript support ensures your code is robust and maintainable."
+                  />
+                </div>
+
+                {/* Code Example */}
+                <div style={{ backgroundColor: '#1a202c', borderRadius: '0.5rem', padding: '1.5rem', marginBottom: '4rem' }}>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '1rem' }}>
+                    Quick Start
+                  </h2>
+                  <pre style={{ color: '#68d391', overflowX: 'auto' }}>
+                    <code>{`# Create a new Inertia page
+        def index(conn, _params) do
+          conn
+          |> assign_prop(:users, Accounts.list_users())
+          |> assign_prop(:title, "User List")
+          |> render_inertia("Users/Index")
+        end`}</code>
+                  </pre>
+                </div>
+
+                {/* Next Steps */}
+                <div style={{ textAlign: 'center' }}>
+                  <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1a202c', marginBottom: '1rem' }}>
+                    Ready to build something amazing?
+                  </h2>
+                  <p style={{ fontSize: '1.125rem', color: '#4a5568' }}>
+                    Start by editing <code style={{ backgroundColor: '#e2e8f0', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>assets/js/pages/Home.tsx</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        interface FeatureCardProps {
+          title: string;
+          description: string;
+        }
+
+        function FeatureCard({ title, description }: FeatureCardProps) {
+          return (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '0.5rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+              padding: '1.5rem',
+              transition: 'box-shadow 0.2s'
+            }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1a202c', marginBottom: '0.5rem' }}>
+                {title}
+              </h3>
+              <p style={{ color: '#4a5568' }}>
+                {description}
+              </p>
+            </div>
+          );
+        }
+        """
+      end
+    end
+
+    defp build_home_component_jsx(has_tailwind) do
+      if has_tailwind do
+        """
+        import React from "react";
+
+        export default function Home({ greeting }) {
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+              <div className="container mx-auto px-4 py-16">
+                {/* Hero Section */}
+                <div className="text-center mb-16">
+                  <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-4">
+                    {greeting}
+                  </h1>
+                  <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+                    Built with Phoenix, Inertia.js, React, and Vite
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <a
+                      href="https://hexdocs.pm/phoenix"
+                      className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                    >
+                      Phoenix Docs
+                    </a>
+                    <a
+                      href="https://inertiajs.com"
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Inertia.js Docs
+                    </a>
+                  </div>
+                </div>
+
+                {/* Features Grid */}
+                <div className="grid md:grid-cols-3 gap-8 mb-16">
+                  <FeatureCard
+                    title="⚡ Lightning Fast"
+                    description="Vite provides instant HMR and blazing fast builds for the best developer experience."
+                  />
+                  <FeatureCard
+                    title="🚀 Modern Stack"
+                    description="Phoenix LiveView + Inertia.js + React creates powerful, reactive applications."
+                  />
+                  <FeatureCard
+                    title="🛡️ Type Safe"
+                    description="Full TypeScript support ensures your code is robust and maintainable."
+                  />
+                </div>
+
+                {/* Code Example */}
+                <div className="bg-gray-900 rounded-lg p-6 mb-16">
+                  <h2 className="text-2xl font-bold text-white mb-4">Quick Start</h2>
+                  <pre className="text-green-400 overflow-x-auto">
+                    <code>{`# Create a new Inertia page
+        def index(conn, _params) do
+          conn
+          |> assign_prop(:users, Accounts.list_users())
+          |> assign_prop(:title, "User List")
+          |> render_inertia("Users/Index")
+        end`}</code>
+                  </pre>
+                </div>
+
+                {/* Next Steps */}
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                    Ready to build something amazing?
+                  </h2>
+                  <p className="text-lg text-gray-600 dark:text-gray-300">
+                    Start by editing <code className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">assets/js/pages/Home.jsx</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function FeatureCard({ title, description }) {
+          return (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                {title}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                {description}
+              </p>
+            </div>
+          );
+        }
+        """
+      else
+        """
+        import React from "react";
+
+        export default function Home({ greeting }) {
+          return (
+            <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f3e7ff, #e0e7ff)', padding: '2rem' }}>
+              <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                {/* Hero Section */}
+                <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                  <h1 style={{ fontSize: '3.5rem', fontWeight: 'bold', color: '#1a202c', marginBottom: '1rem' }}>
+                    {greeting}
+                  </h1>
+                  <p style={{ fontSize: '1.25rem', color: '#4a5568', marginBottom: '2rem' }}>
+                    Built with Phoenix, Inertia.js, React, and Vite
+                  </p>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <a
+                      href="https://hexdocs.pm/phoenix"
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#f97316',
+                        color: 'white',
+                        borderRadius: '0.5rem',
+                        textDecoration: 'none',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ea580c'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f97316'}
+                    >
+                      Phoenix Docs
+                    </a>
+                    <a
+                      href="https://inertiajs.com"
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#9333ea',
+                        color: 'white',
+                        borderRadius: '0.5rem',
+                        textDecoration: 'none',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#7c3aed'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#9333ea'}
+                    >
+                      Inertia.js Docs
+                    </a>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
+                  <FeatureCard
+                    title="⚡ Lightning Fast"
+                    description="Vite provides instant HMR and blazing fast builds for the best developer experience."
+                  />
+                  <FeatureCard
+                    title="🚀 Modern Stack"
+                    description="Phoenix LiveView + Inertia.js + React creates powerful, reactive applications."
+                  />
+                  <FeatureCard
+                    title="🛡️ Type Safe"
+                    description="Full TypeScript support ensures your code is robust and maintainable."
+                  />
+                </div>
+
+                {/* Code Example */}
+                <div style={{ backgroundColor: '#1a202c', borderRadius: '0.5rem', padding: '1.5rem', marginBottom: '4rem' }}>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '1rem' }}>
+                    Quick Start
+                  </h2>
+                  <pre style={{ color: '#68d391', overflowX: 'auto' }}>
+                    <code>{`# Create a new Inertia page
+        def index(conn, _params) do
+          conn
+          |> assign_prop(:users, Accounts.list_users())
+          |> assign_prop(:title, "User List")
+          |> render_inertia("Users/Index")
+        end`}</code>
+                  </pre>
+                </div>
+
+                {/* Next Steps */}
+                <div style={{ textAlign: 'center' }}>
+                  <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1a202c', marginBottom: '1rem' }}>
+                    Ready to build something amazing?
+                  </h2>
+                  <p style={{ fontSize: '1.125rem', color: '#4a5568' }}>
+                    Start by editing <code style={{ backgroundColor: '#e2e8f0', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>assets/js/pages/Home.jsx</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function FeatureCard({ title, description }) {
+          return (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '0.5rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+              padding: '1.5rem',
+              transition: 'box-shadow 0.2s'
+            }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1a202c', marginBottom: '0.5rem' }}>
+                {title}
+              </h3>
+              <p style={{ color: '#4a5568' }}>
+                {description}
+              </p>
+            </div>
+          );
+        }
+        """
+      end
     end
 
     defp maybe_create_typescript_config(igniter, false, _), do: igniter
@@ -1134,7 +1660,7 @@ if Code.ensure_loaded?(Igniter) do
       1. Update a controller action to use Inertia:
          ```elixir
          def index(conn, _params) do
-          assign(conn, :greeting, "Hello from Inertia!")
+          assign_prop(conn, :greeting, "Hello from Inertia!")
           |> render_inertia("Home")
          end
          ```
