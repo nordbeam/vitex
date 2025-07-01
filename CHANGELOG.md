@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.0 (2025-07-01)
+
+### Features
+
+* Added comprehensive shadcn/ui integration support
+  * New `--shadcn` flag to enable shadcn/ui component library
+  * New `--base-color` option to customize the theme color (neutral, gray, zinc, stone, slate)
+  * Automatic configuration of Vite path aliases for component imports (@, @/components, @/lib, @/hooks)
+  * Automatic initialization of shadcn/ui after npm/bun install
+  * Support for both npm and bun package managers
+
+### Enhancements
+
+* Added validation to ensure shadcn/ui requirements are met (TypeScript + React/Inertia)
+* Comprehensive test coverage for shadcn/ui integration
+* Clear installation notices with usage examples
+* Updated documentation with shadcn/ui setup and usage instructions
+
+### Technical Improvements
+
+* Made `maybe_setup_shadcn` and `print_next_steps` functions public for better testability
+* Fixed pattern matching in notice functions to work with keyword lists
+* Updated test helpers to handle both tuple and map task formats
+
 ## v0.1.5 (2025-07-01)
 
 ### Enhancements

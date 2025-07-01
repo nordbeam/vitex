@@ -849,6 +849,244 @@ defmodule Mix.Tasks.Vitex.InstallTest do
     end
   end
 
+  describe "shadcn/ui integration" do
+    test "validates shadcn requires TypeScript" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true]})
+        |> Install.igniter()
+
+      # Should have an issue since TypeScript is not enabled
+      assert Enum.any?(project.issues, fn issue ->
+               String.contains?(issue, "The --shadcn flag requires TypeScript")
+             end)
+    end
+
+    test "validates shadcn requires React or Inertia" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true]})
+        |> Install.igniter()
+
+      # Should have an issue since neither React nor Inertia is enabled
+      assert Enum.any?(project.issues, fn issue ->
+               String.contains?(issue, "The --shadcn flag requires either React or Inertia.js")
+             end)
+    end
+
+    test "allows shadcn with TypeScript and React" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, react: true]})
+        |> Install.igniter()
+
+      # Should not have any shadcn-related issues
+      refute Enum.any?(project.issues, fn issue ->
+               String.contains?(issue, "shadcn")
+             end)
+    end
+
+    test "allows shadcn with TypeScript and Inertia" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, inertia: true]})
+        |> Install.igniter()
+
+      # Should not have any shadcn-related issues
+      refute Enum.any?(project.issues, fn issue ->
+               String.contains?(issue, "shadcn")
+             end)
+    end
+
+    test "configures vite with path imports for shadcn" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, react: true]})
+        |> Install.create_vite_config()
+
+      # Check that path import is added
+      assert_file_contains(project, "assets/vite.config.js", "import path from 'path'")
+
+      # Check that resolve aliases are configured for shadcn
+      assert_file_contains(project, "assets/vite.config.js", "resolve: {")
+      assert_file_contains(project, "assets/vite.config.js", "alias: {")
+
+      assert_file_contains(
+        project,
+        "assets/vite.config.js",
+        "\"@\": path.resolve(__dirname, \"./js\")"
+      )
+
+      assert_file_contains(
+        project,
+        "assets/vite.config.js",
+        "\"@/components\": path.resolve(__dirname, \"./js/components\")"
+      )
+
+      assert_file_contains(
+        project,
+        "assets/vite.config.js",
+        "\"@/lib\": path.resolve(__dirname, \"./js/lib\")"
+      )
+
+      assert_file_contains(
+        project,
+        "assets/vite.config.js",
+        "\"@/hooks\": path.resolve(__dirname, \"./js/hooks\")"
+      )
+    end
+
+    test "queues shadcn init command with npm" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, react: true]})
+        |> Install.maybe_setup_shadcn()
+
+      # Check that shadcn init command is queued
+      assert_has_task(project, "cmd", [
+        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables --no-src-dir"
+      ])
+    end
+
+    test "queues shadcn init command with bun" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, react: true, bun: true]})
+        |> Install.maybe_setup_shadcn()
+
+      # Check that shadcn init command is queued with bunx
+      assert_has_task(project, "cmd", [
+        "cd assets && bunx --bun shadcn@latest init -y --base-color zinc --css-variables --no-src-dir"
+      ])
+    end
+
+    test "uses custom base color when specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{
+          options: [shadcn: true, typescript: true, react: true, base_color: "slate"]
+        })
+        |> Install.maybe_setup_shadcn()
+
+      # Check that custom base color is used
+      assert_has_task(project, "cmd", [
+        "cd assets && npx shadcn@latest init -y --base-color slate --css-variables --no-src-dir"
+      ])
+    end
+
+    test "adds shadcn installation notice" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, react: true]})
+        |> Install.igniter()
+
+      # Check that shadcn notice is added
+      assert Enum.any?(project.notices, fn notice ->
+               String.contains?(notice, "shadcn/ui Configuration:")
+             end)
+
+      # Check that the notice mentions the correct theme
+      assert Enum.any?(project.notices, fn notice ->
+               String.contains?(notice, "shadcn/ui has been initialized with the zinc theme")
+             end)
+    end
+
+    test "adds shadcn installation notice with custom base color" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{
+          options: [shadcn: true, typescript: true, react: true, base_color: "neutral"]
+        })
+        |> Install.igniter()
+
+      # Check that the notice mentions the custom theme
+      assert Enum.any?(project.notices, fn notice ->
+               String.contains?(notice, "shadcn/ui has been initialized with the neutral theme")
+             end)
+    end
+
+    test "complete shadcn installation with React" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [shadcn: true, typescript: true, react: true]})
+        |> Install.igniter()
+
+      # Verify vite config has path imports and aliases
+      assert_file_contains(project, "assets/vite.config.js", "import path from 'path'")
+      assert_file_contains(project, "assets/vite.config.js", "\"@/components\": path.resolve")
+
+      # Verify shadcn init command is queued
+      assert_has_task(project, "cmd", [
+        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables --no-src-dir"
+      ])
+
+      # Verify shadcn notice is added
+      assert Enum.any?(project.notices, fn notice ->
+               String.contains?(notice, "shadcn/ui Configuration:")
+             end)
+
+      # Should not have any issues
+      assert project.issues == []
+    end
+
+    test "complete shadcn installation with Inertia" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{
+          options: [shadcn: true, typescript: true, inertia: true, base_color: "stone"]
+        })
+        |> Install.igniter()
+
+      # Verify vite config has path imports and aliases
+      assert_file_contains(project, "assets/vite.config.js", "import path from 'path'")
+      assert_file_contains(project, "assets/vite.config.js", "\"@/components\": path.resolve")
+
+      # Verify shadcn init command is queued with custom color
+      assert_has_task(project, "cmd", [
+        "cd assets && npx shadcn@latest init -y --base-color stone --css-variables --no-src-dir"
+      ])
+
+      # Verify Inertia setup is also present
+      assert_creates(project, "lib/test_web/components/layouts/inertia_root.html.heex")
+      assert_creates(project, "assets/js/pages/Home.tsx")
+
+      # Should not have any issues
+      assert project.issues == []
+    end
+
+    test "does not setup shadcn when flag is not specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [typescript: true, react: true]})
+        |> Install.igniter()
+
+      # Should not have path import in vite config
+      refute_file_contains(project, "assets/vite.config.js", "import path from 'path'")
+
+      # Should have simple alias without shadcn paths
+      assert_file_contains(project, "assets/vite.config.js", "'@': '/js'")
+      refute_file_contains(project, "assets/vite.config.js", "@/components")
+
+      # Should not have any shadcn init task
+      refute Enum.any?(project.tasks, fn task ->
+               if is_tuple(task) do
+                 {type, args} = task
+
+                 type == "cmd" && is_list(args) &&
+                   Enum.any?(args, &String.contains?(&1, "shadcn@latest init"))
+               else
+                 task.type == "cmd" && is_list(task.args) &&
+                   Enum.any?(task.args, &String.contains?(&1, "shadcn@latest init"))
+               end
+             end)
+
+      # Should not have shadcn notice
+      refute Enum.any?(project.notices, fn notice ->
+               String.contains?(notice, "shadcn/ui Configuration:")
+             end)
+    end
+  end
+
   describe "Complete installation" do
     test "runs all setup steps in order" do
       project =
@@ -977,7 +1215,12 @@ defmodule Mix.Tasks.Vitex.InstallTest do
   defp refute_has_task(project, task_type, task_args) do
     task_found =
       Enum.any?(project.tasks, fn task ->
-        task.type == task_type && task.args == task_args
+        if is_tuple(task) do
+          {type, args} = task
+          type == task_type && args == task_args
+        else
+          task.type == task_type && task.args == task_args
+        end
       end)
 
     refute task_found, "Expected NOT to find task #{task_type} with args #{inspect(task_args)}"

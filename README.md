@@ -29,6 +29,7 @@ Vitex
   - [React Support](#react-support)
   - [TypeScript Support](#typescript-support)
   - [Inertia.js Integration](#inertiajs-integration)
+  - [shadcn/ui Integration](#shadcnui-integration)
   - [Server-Side Rendering (SSR)](#server-side-rendering-ssr)
 - [Configuration](#configuration)
   - [Vite Configuration](#vite-configuration)
@@ -100,6 +101,12 @@ mix igniter.install vitex --typescript
 # With Inertia.js (includes React)
 mix igniter.install vitex --inertia
 
+# With shadcn/ui components (requires TypeScript and React/Inertia)
+mix igniter.install vitex --typescript --react --shadcn
+
+# With custom shadcn theme color
+mix igniter.install vitex --typescript --react --shadcn --base-color slate
+
 # With all features
 mix igniter.install vitex --react --typescript --tls
 ```
@@ -121,7 +128,7 @@ If you prefer manual setup or don't want to use Igniter:
 # mix.exs
 def deps do
   [
-    {:vitex, "~> 0.1.0"}
+    {:vitex, "~> 0.2.0"}
   ]
 end
 ```
@@ -304,6 +311,61 @@ export default function UsersIndex({ users }) {
 }
 ```
 
+### shadcn/ui Integration
+
+Vitex supports [shadcn/ui](https://ui.shadcn.com/), a collection of reusable components built with Radix UI and Tailwind CSS.
+
+**Requirements:**
+- TypeScript must be enabled (`--typescript`)
+- Either React (`--react`) or Inertia.js (`--inertia`) must be enabled
+
+```bash
+# Install with shadcn/ui
+mix igniter.install vitex --typescript --react --shadcn
+
+# With custom theme color (neutral, gray, zinc, stone, slate)
+mix igniter.install vitex --typescript --react --shadcn --base-color slate
+```
+
+The installer will:
+- Configure path aliases for component imports
+- Initialize shadcn/ui with your chosen theme
+- Set up CSS variables for theming
+- Create the components directory structure
+
+**Adding Components:**
+
+```bash
+cd assets && npx shadcn@latest add button
+cd assets && npx shadcn@latest add card dialog
+```
+
+**Usage in your React components:**
+
+```tsx
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+export default function MyComponent() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Welcome</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button variant="outline">Click me</Button>
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+**Path Aliases:**
+- `@` - Root JavaScript directory (`assets/js`)
+- `@/components` - Component directory
+- `@/lib` - Utility functions
+- `@/hooks` - Custom React hooks
+
 ### Server-Side Rendering (SSR)
 
 Enable SSR in your Vite config:
@@ -403,6 +465,8 @@ Options:
   --react        Enable React support
   --typescript   Enable TypeScript
   --inertia      Enable Inertia.js (includes React)
+  --shadcn       Enable shadcn/ui components (requires TypeScript + React/Inertia)
+  --base-color   Base color for shadcn/ui theme (neutral, gray, zinc, stone, slate)
   --tls          Enable TLS auto-detection
   --ssr          Enable SSR support
 ```

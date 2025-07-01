@@ -21,6 +21,8 @@ if Code.ensure_loaded?(Igniter) do
         --react              Enable React Fast Refresh support
         --typescript         Enable TypeScript support
         --inertia            Enable Inertia.js support (automatically enables React)
+        --shadcn             Enable shadcn/ui component library (requires --typescript and either --react or --inertia)
+        --base-color         Base color for shadcn/ui theme (neutral, gray, zinc, stone, slate) - defaults to zinc
         --bun                Use Bun as the package manager instead of npm
         --yes                Don't prompt for confirmations
 
@@ -55,7 +57,9 @@ if Code.ensure_loaded?(Igniter) do
           camelize_props: :boolean,
           history_encrypt: :boolean,
           yes: :boolean,
-          bun: :boolean
+          bun: :boolean,
+          shadcn: :boolean,
+          base_color: :string
         ],
         defaults: [],
         positional: [],
@@ -73,6 +77,29 @@ if Code.ensure_loaded?(Igniter) do
           igniter
         end
 
+      # Validate shadcn requirements
+      igniter =
+        if igniter.args.options[:shadcn] do
+          cond do
+            !igniter.args.options[:typescript] ->
+              Igniter.add_issue(igniter, """
+              The --shadcn flag requires TypeScript to be enabled.
+              Please add the --typescript flag to use shadcn/ui.
+              """)
+
+            !(igniter.args.options[:react] || igniter.args.options[:inertia]) ->
+              Igniter.add_issue(igniter, """
+              The --shadcn flag requires either React or Inertia.js to be enabled.
+              Please add either the --react or --inertia flag to use shadcn/ui.
+              """)
+
+            true ->
+              igniter
+          end
+        else
+          igniter
+        end
+
       igniter
       |> maybe_add_inertia_dep()
       |> BunIntegration.integrate()
@@ -84,6 +111,7 @@ if Code.ensure_loaded?(Igniter) do
       |> remove_old_watchers()
       |> update_root_layout()
       |> setup_assets()
+      |> maybe_setup_shadcn()
       |> update_mix_aliases_for_system_package_managers()
       |> print_next_steps()
     end
@@ -400,10 +428,11 @@ if Code.ensure_loaded?(Igniter) do
       plugins = build_vite_plugins(options, has_tailwind)
       input_files = build_input_files(options)
       additional_opts = build_additional_options(options)
+      path_import = if options[:shadcn], do: "\nimport path from 'path'", else: ""
 
       """
       import { defineConfig } from 'vite'
-      import phoenix from '../deps/vitex/priv/static/vitex'#{imports}
+      import phoenix from '../deps/vitex/priv/static/vitex'#{path_import}#{imports}
 
       export default defineConfig({
         plugins: [#{plugins}
@@ -414,7 +443,7 @@ if Code.ensure_loaded?(Igniter) do
             hotFile: '../priv/hot',
             manifestPath: '../priv/static/assets/manifest.json',#{additional_opts}
           })
-        ],#{if options[:typescript], do: "\n        resolve: {\n          alias: {\n            '@': '/js'\n          }\n        }", else: ""}
+        ],#{build_resolve_config(options)}
       })
       """
     end
@@ -492,6 +521,34 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
+    defp build_resolve_config(options) do
+      cond do
+        options[:shadcn] ->
+          """
+          resolve: {
+            alias: {
+              "@": path.resolve(__dirname, "./js"),
+              "@/components": path.resolve(__dirname, "./js/components"),
+              "@/lib": path.resolve(__dirname, "./js/lib"),
+              "@/hooks": path.resolve(__dirname, "./js/hooks")
+            }
+          }
+          """
+
+        options[:typescript] ->
+          """
+            resolve: {
+              alias: {
+                '@': '/js'
+              }
+            }
+          """
+
+        true ->
+          ""
+      end
+    end
+
     defp maybe_add_config(configs, _config, false), do: configs
     defp maybe_add_config(configs, config, true), do: [config | configs]
 
@@ -512,6 +569,7 @@ if Code.ensure_loaded?(Igniter) do
         react: igniter.args.options[:react] || false,
         typescript: igniter.args.options[:typescript] || false,
         inertia: igniter.args.options[:inertia] || false,
+        shadcn: igniter.args.options[:shadcn] || false,
         tailwind: has_tailwind,
         topbar: has_topbar,
         daisyui: has_daisyui
@@ -1669,7 +1727,46 @@ if Code.ensure_loaded?(Igniter) do
       end)
     end
 
-    defp print_next_steps(igniter) do
+    def maybe_setup_shadcn(igniter) do
+      if igniter.args.options[:shadcn] do
+        # Queue the shadcn init command to run after npm install
+        base_color = igniter.args.options[:base_color] || "zinc"
+
+        # Determine which package manager command to use
+        shadcn_cmd =
+          case BunIntegration.install_command(igniter) do
+            nil ->
+              [
+                "cmd",
+                [
+                  "cd assets && bunx --bun shadcn@latest init -y --base-color #{base_color} --css-variables --no-src-dir"
+                ]
+              ]
+
+            "npm install" ->
+              [
+                "cmd",
+                [
+                  "cd assets && npx shadcn@latest init -y --base-color #{base_color} --css-variables --no-src-dir"
+                ]
+              ]
+
+            _ ->
+              [
+                "cmd",
+                [
+                  "cd assets && npx shadcn@latest init -y --base-color #{base_color} --css-variables --no-src-dir"
+                ]
+              ]
+          end
+
+        Igniter.add_task(igniter, Enum.at(shadcn_cmd, 0), Enum.at(shadcn_cmd, 1))
+      else
+        igniter
+      end
+    end
+
+    def print_next_steps(igniter) do
       notices = build_installation_notices(igniter.args.options)
 
       Enum.reduce(notices, igniter, fn notice, acc ->
@@ -1692,6 +1789,7 @@ if Code.ensure_loaded?(Igniter) do
       notices = maybe_add_typescript_notice(notices, options)
       notices = maybe_add_ssr_notice(notices, options)
       notices = maybe_add_inertia_notice(notices, options)
+      notices = maybe_add_shadcn_notice(notices, options)
 
       notices ++ [build_documentation_notice()]
     end
@@ -1784,6 +1882,32 @@ if Code.ensure_loaded?(Igniter) do
         notes ++ ["- Browser history encryption is enabled for security"]
       else
         notes
+      end
+    end
+
+    defp maybe_add_shadcn_notice(notices, options) do
+      if Keyword.get(options, :shadcn) do
+        base_color = Keyword.get(options, :base_color, "zinc")
+
+        notice = """
+        shadcn/ui Configuration:
+        - shadcn/ui has been initialized with the #{base_color} theme
+        - Components will be installed in assets/js/components/ui/
+        - CSS variables are configured for easy theming
+        - Use the cn() utility from @/lib/utils for className merging
+
+        To add components:
+          cd assets && npx shadcn@latest add button
+
+        Example usage:
+          import { Button } from "@/components/ui/button"
+
+          <Button variant="outline">Click me</Button>
+        """
+
+        notices ++ [notice]
+      else
+        notices
       end
     end
 
