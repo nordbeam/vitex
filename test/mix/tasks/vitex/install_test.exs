@@ -144,8 +144,8 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       ...|
        - |      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
        - |      "assets.build": ["tailwind test", "esbuild test"],
-       + |      "assets.setup": ["vitex.install --if-missing", "vitex install"],
-       + |      "assets.build": ["vitex install", "vitex build"],
+       + |      "assets.setup": ["vitex.install --if-missing", "vitex.deps"],
+       + |      "assets.build": ["vitex.deps", "vitex build"],
       ...|
       """)
     end
@@ -158,8 +158,8 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       ...|
        - |      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
        - |      "assets.build": ["tailwind test", "esbuild test"],
-       + |      "assets.setup": ["vitex.install --if-missing", "vitex install"],
-       + |      "assets.build": ["vitex install", "vitex build"],
+       + |      "assets.setup": ["vitex.install --if-missing", "vitex.deps"],
+       + |      "assets.build": ["vitex.deps", "vitex build"],
       ...|
       """)
     end
@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
          |      "assets.deploy": [
        - |        "tailwind test --minify",
        - |        "esbuild test --minify",
-       + |        "vitex install",
+       + |        "vitex.deps",
        + |        "vitex build",
          |        "phx.digest"
          |      ]
@@ -723,6 +723,132 @@ defmodule Mix.Tasks.Vitex.InstallTest do
     end
   end
 
+  describe "Bun integration" do
+    test "adds bun dependency when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.maybe_add_bun_dep()
+
+      # Assert that bun dependency is added
+      assert_has_dependency(project, {:bun, "~> 1.5", runtime: Mix.env() == :dev})
+    end
+
+    test "configures bun when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.maybe_setup_bun_config()
+
+      # Check that bun config is added
+      assert_file_contains(project, "config/config.exs", "config :bun")
+      assert_file_contains(project, "config/config.exs", "version: \"1.1.22\"")
+    end
+
+    test "sets up bun watcher when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.setup_watcher()
+
+      # Assert that the bun watcher has been added
+      assert_file_contains(
+        project,
+        "config/dev.exs",
+        "bun: [\"_build/bun\", \"run\", \"dev\""
+      )
+    end
+
+    test "updates mix aliases for bun when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.update_mix_aliases()
+
+      # Check that the assets.setup alias includes bun commands
+      assert_file_contains(
+        project,
+        "mix.exs",
+        "\"assets.setup\": [\"vitex.install --if-missing\", \"bun.install --if-missing\", \"bun assets\"]"
+      )
+
+      # Check that assets.build uses bun
+      assert_file_contains(
+        project,
+        "mix.exs",
+        "\"assets.build\": [\"bun assets\", \"cmd _build/bun run build --prefix assets\"]"
+      )
+
+      # Check that assets.deploy uses bun - just check for the key commands
+      assert_file_contains(project, "mix.exs", "bun assets")
+      assert_file_contains(project, "mix.exs", "_build/bun run build")
+      assert_file_contains(project, "mix.exs", "phx.digest")
+    end
+
+    test "adds bun workspaces to package.json when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.update_package_json()
+
+      # Check for bun workspaces - just check for the key parts since JSON might be pretty-printed
+      assert_file_contains(project, "assets/package.json", "\"workspaces\":")
+      assert_file_contains(project, "assets/package.json", "../deps/*")
+      assert_file_contains(project, "assets/package.json", "\"phoenix\": \"workspace:*\"")
+      assert_file_contains(project, "assets/package.json", "\"phoenix_html\": \"workspace:*\"")
+
+      assert_file_contains(
+        project,
+        "assets/package.json",
+        "\"phoenix_live_view\": \"workspace:*\""
+      )
+    end
+
+    test "does not queue npm install when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.update_package_json()
+
+      # Should not have npm install task when using bun
+      refute_has_task(project, "cmd", ["npm install --prefix assets"])
+    end
+
+    test "adds bun notice when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.igniter()
+
+      # Check that bun-specific notice is added
+      assert Enum.any?(project.notices, fn notice ->
+               String.contains?(notice, "Bun Configuration:")
+             end)
+    end
+
+    test "complete installation with --bun option" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.igniter()
+
+      # Verify bun dependency
+      assert_has_dependency(project, {:bun, "~> 1.5", runtime: Mix.env() == :dev})
+
+      # Verify bun config
+      assert_file_contains(project, "config/config.exs", "config :bun")
+
+      # Verify bun watcher
+      assert_file_contains(project, "config/dev.exs", "_build/bun")
+
+      # Verify package.json has workspaces
+      assert_file_contains(project, "assets/package.json", "workspaces")
+
+      # Verify mix aliases use bun
+      assert_file_contains(project, "mix.exs", "bun assets")
+    end
+  end
+
   describe "Complete installation" do
     test "runs all setup steps in order" do
       project =
@@ -839,7 +965,21 @@ defmodule Mix.Tasks.Vitex.InstallTest do
     assert_file_contains(project, "mix.exs", "{:#{dep_name}, \"#{version}\"}")
   end
 
+  defp assert_has_dependency(project, {dep_name, version, _opts}) do
+    # For dependencies with options like runtime: Mix.env() == :dev
+    assert_file_contains(project, "mix.exs", "{:#{dep_name}, \"#{version}\"")
+  end
+
   defp refute_has_dependency(project, dep_name) do
     refute_file_contains(project, "mix.exs", "{:#{dep_name},")
+  end
+
+  defp refute_has_task(project, task_type, task_args) do
+    task_found =
+      Enum.any?(project.tasks, fn task ->
+        task.type == task_type && task.args == task_args
+      end)
+
+    refute task_found, "Expected NOT to find task #{task_type} with args #{inspect(task_args)}"
   end
 end

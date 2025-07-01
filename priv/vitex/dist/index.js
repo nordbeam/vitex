@@ -2385,27 +2385,8 @@ function resolvePhoenixPlugin(pluginConfig) {
     const defaultAliases = {
         "@": path.resolve(process.cwd(), "assets/js"),
     };
-    // Check for Phoenix ESM files and use them if available
-    const phoenixAliases = {};
-    const depsPath = path.resolve(process.cwd(), "../deps");
-    // Check for phoenix.mjs
-    if (fs.existsSync(path.join(depsPath, "phoenix/priv/static/phoenix.mjs"))) {
-        phoenixAliases["phoenix"] = path.join(depsPath, "phoenix/priv/static/phoenix.mjs");
-    }
-    else if (fs.existsSync(path.join(depsPath, "phoenix/priv/static/phoenix.js"))) {
-        phoenixAliases["phoenix"] = path.join(depsPath, "phoenix/priv/static/phoenix.js");
-    }
-    // Always use phoenix_html.js (no ESM version exists)
-    if (fs.existsSync(path.join(depsPath, "phoenix_html/priv/static/phoenix_html.js"))) {
-        phoenixAliases["phoenix_html"] = path.join(depsPath, "phoenix_html/priv/static/phoenix_html.js");
-    }
-    // Check for phoenix_live_view.esm.js
-    if (fs.existsSync(path.join(depsPath, "phoenix_live_view/priv/static/phoenix_live_view.esm.js"))) {
-        phoenixAliases["phoenix_live_view"] = path.join(depsPath, "phoenix_live_view/priv/static/phoenix_live_view.esm.js");
-    }
-    else if (fs.existsSync(path.join(depsPath, "phoenix_live_view/priv/static/phoenix_live_view.js"))) {
-        phoenixAliases["phoenix_live_view"] = path.join(depsPath, "phoenix_live_view/priv/static/phoenix_live_view.js");
-    }
+    // Resolve Phoenix JS library aliases
+    const phoenixAliases = resolvePhoenixJSAliases();
     return {
         name: "phoenix",
         enforce: "post",
@@ -3126,6 +3107,71 @@ function resolveDevelopmentEnvironmentServerConfig(detectTls, env) {
             `Or set detectTls: false in your vite.config.js to disable TLS detection.\n`);
     }
     return;
+}
+/**
+ * Resolve aliases for Phoenix JavaScript libraries.
+ *
+ * This function automatically detects and creates Vite aliases for Phoenix JS dependencies
+ * that are managed by Mix in the deps directory. This allows importing these libraries
+ * naturally (e.g., `import { Socket } from "phoenix"`) without needing to know their
+ * actual file system location.
+ *
+ * For package managers that don't support workspaces with non-standard structures
+ * (npm, pnpm, yarn), this provides a clean way to resolve Phoenix dependencies.
+ *
+ * @returns Record of library names to their resolved file paths
+ */
+function resolvePhoenixJSAliases() {
+    const aliases = {};
+    const depsPath = path.resolve(process.cwd(), "../deps");
+    // Phoenix library configurations
+    const phoenixLibraries = [
+        {
+            name: "phoenix",
+            paths: [
+                "phoenix/priv/static/phoenix.mjs", // Prefer ESM version
+                "phoenix/priv/static/phoenix.js", // Fallback to regular JS
+            ],
+        },
+        {
+            name: "phoenix_html",
+            paths: [
+                "phoenix_html/priv/static/phoenix_html.js", // No ESM version available
+            ],
+        },
+        {
+            name: "phoenix_live_view",
+            paths: [
+                "phoenix_live_view/priv/static/phoenix_live_view.esm.js", // Prefer ESM version
+                "phoenix_live_view/priv/static/phoenix_live_view.js", // Fallback to regular JS
+            ],
+        },
+    ];
+    // Check each library and use the first available version
+    for (const library of phoenixLibraries) {
+        for (const libPath of library.paths) {
+            const fullPath = path.join(depsPath, libPath);
+            if (fs.existsSync(fullPath)) {
+                aliases[library.name] = fullPath;
+                if (process.env.DEBUG || process.env.VERBOSE) {
+                    const isESM = libPath.includes('.mjs') || libPath.includes('.esm.');
+                    console.log(colors.dim(`Phoenix alias: ${library.name} -> ${libPath} ${isESM ? '(ESM)' : '(CommonJS)'}`));
+                }
+                break; // Use the first matching path
+            }
+        }
+    }
+    // Warn if expected Phoenix libraries are missing
+    if (process.env.DEBUG || process.env.VERBOSE) {
+        const missingLibraries = phoenixLibraries
+            .filter(lib => !aliases[lib.name])
+            .map(lib => lib.name);
+        if (missingLibraries.length > 0) {
+            console.log(colors.dim(`Missing Phoenix JS libraries: ${missingLibraries.join(', ')}. ` +
+                `Make sure to run 'mix deps.get' in your Phoenix project.`));
+        }
+    }
+    return aliases;
 }
 
 export { phoenix as default, phoenix, refreshPaths };

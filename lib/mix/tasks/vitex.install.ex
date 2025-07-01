@@ -21,11 +21,27 @@ if Code.ensure_loaded?(Igniter) do
         --react              Enable React Fast Refresh support
         --typescript         Enable TypeScript support
         --inertia            Enable Inertia.js support (automatically enables React)
+        --bun                Use Bun as the package manager instead of npm
         --yes                Don't prompt for confirmations
+
+    ## Package Manager Support
+
+    Vitex supports two approaches for package management:
+
+    1. **System Package Managers** (npm, pnpm, yarn): Uses whatever is installed on the system
+    2. **Elixir-Managed Bun** (--bun flag): Uses the Elixir bun package to download and manage the bun executable
+
+    The --bun option is special because:
+    - It adds a Mix dependency for bun
+    - The bun executable is managed at _build/bun
+    - It can use Bun workspaces for Phoenix JS dependencies
+    - Mix tasks handle the bun installation lifecycle
     """
 
     use Igniter.Mix.Task
     require Igniter.Code.Common
+
+    alias Mix.Tasks.Vitex.Install.BunIntegration
 
     @impl Igniter.Mix.Task
     def info(_argv, _parent) do
@@ -38,7 +54,8 @@ if Code.ensure_loaded?(Igniter) do
           inertia: :boolean,
           camelize_props: :boolean,
           history_encrypt: :boolean,
-          yes: :boolean
+          yes: :boolean,
+          bun: :boolean
         ],
         defaults: [],
         positional: [],
@@ -58,15 +75,16 @@ if Code.ensure_loaded?(Igniter) do
 
       igniter
       |> maybe_add_inertia_dep()
+      |> BunIntegration.integrate()
       |> setup_html_helpers()
       |> maybe_setup_inertia()
       |> create_vite_config()
       |> update_package_json()
-      |> setup_watcher()
+      |> setup_watcher_for_system_package_managers()
       |> remove_old_watchers()
       |> update_root_layout()
       |> setup_assets()
-      |> update_mix_aliases()
+      |> update_mix_aliases_for_system_package_managers()
       |> print_next_steps()
     end
 
@@ -76,6 +94,33 @@ if Code.ensure_loaded?(Igniter) do
       else
         igniter
       end
+    end
+
+    # Bun integration is now handled by BunIntegration.integrate/1
+
+    # Test helpers - these delegate to the appropriate functions
+    def update_mix_aliases(igniter) do
+      if BunIntegration.using_bun?(igniter) do
+        BunIntegration.integrate(igniter)
+      else
+        update_mix_aliases_for_system_package_managers(igniter)
+      end
+    end
+
+    def setup_watcher(igniter) do
+      if BunIntegration.using_bun?(igniter) do
+        BunIntegration.integrate(igniter)
+      else
+        setup_watcher_for_system_package_managers(igniter)
+      end
+    end
+
+    def maybe_add_bun_dep(igniter) do
+      BunIntegration.integrate(igniter)
+    end
+
+    def maybe_setup_bun_config(igniter) do
+      BunIntegration.integrate(igniter)
     end
 
     def setup_html_helpers(igniter) do
@@ -494,6 +539,9 @@ if Code.ensure_loaded?(Igniter) do
         }
       }
 
+      # Add Bun workspaces for Phoenix JS libraries if needed
+      package_json = BunIntegration.update_package_json(package_json, igniter)
+
       content = Jason.encode!(package_json, pretty: true)
 
       Igniter.create_new_file(igniter, "assets/package.json", content, on_exists: :skip)
@@ -582,25 +630,38 @@ if Code.ensure_loaded?(Igniter) do
     defp maybe_update_daisyui_imports(igniter, false), do: igniter
 
     defp queue_npm_install(igniter) do
-      Igniter.add_task(igniter, "cmd", ["npm install --prefix assets"])
+      case BunIntegration.install_command(igniter) do
+        nil ->
+          # Bun handles its own installation
+          igniter
+
+        install_cmd ->
+          Igniter.add_task(igniter, "cmd", [install_cmd])
+      end
     end
 
-    def setup_watcher(igniter) do
-      {igniter, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
+    def setup_watcher_for_system_package_managers(igniter) do
+      # Bun watcher is handled by BunIntegration
+      if BunIntegration.using_bun?(igniter) do
+        igniter
+      else
+        {igniter, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
 
-      watcher_value =
-        {:code,
-         Sourceror.parse_string!("""
-         ["node_modules/.bin/vite", "dev", cd: Path.expand("../assets", __DIR__)]
-         """)}
+        # Use Vite directly with npm/yarn/pnpm
+        watcher_value =
+          {:code,
+           Sourceror.parse_string!("""
+           ["node_modules/.bin/vite", "dev", cd: Path.expand("../assets", __DIR__)]
+           """)}
 
-      Igniter.Project.Config.configure(
-        igniter,
-        "dev.exs",
-        Igniter.Project.Application.app_name(igniter),
-        [endpoint, :watchers, :node],
-        watcher_value
-      )
+        Igniter.Project.Config.configure(
+          igniter,
+          "dev.exs",
+          Igniter.Project.Application.app_name(igniter),
+          [endpoint, :watchers, :node],
+          watcher_value
+        )
+      end
     end
 
     def remove_old_watchers(igniter) do
@@ -1444,25 +1505,31 @@ if Code.ensure_loaded?(Igniter) do
       """
     end
 
-    def update_mix_aliases(igniter) do
-      igniter
-      |> Igniter.Project.TaskAliases.modify_existing_alias("assets.setup", fn zipper ->
-        {:ok,
-         Sourceror.Zipper.replace(
-           zipper,
-           quote(do: ["vitex.install --if-missing", "vitex install"])
-         )}
-      end)
-      |> Igniter.Project.TaskAliases.modify_existing_alias("assets.build", fn zipper ->
-        {:ok, Sourceror.Zipper.replace(zipper, quote(do: ["vitex install", "vitex build"]))}
-      end)
-      |> Igniter.Project.TaskAliases.modify_existing_alias("assets.deploy", fn zipper ->
-        {:ok,
-         Sourceror.Zipper.replace(
-           zipper,
-           quote(do: ["vitex install", "vitex build", "phx.digest"])
-         )}
-      end)
+    def update_mix_aliases_for_system_package_managers(igniter) do
+      # Bun aliases are handled by BunIntegration
+      if BunIntegration.using_bun?(igniter) do
+        igniter
+      else
+        # Use vitex tasks (which detect package manager automatically)
+        igniter
+        |> Igniter.Project.TaskAliases.modify_existing_alias("assets.setup", fn zipper ->
+          {:ok,
+           Sourceror.Zipper.replace(
+             zipper,
+             quote(do: ["vitex.install --if-missing", "vitex.deps"])
+           )}
+        end)
+        |> Igniter.Project.TaskAliases.modify_existing_alias("assets.build", fn zipper ->
+          {:ok, Sourceror.Zipper.replace(zipper, quote(do: ["vitex.deps", "vitex build"]))}
+        end)
+        |> Igniter.Project.TaskAliases.modify_existing_alias("assets.deploy", fn zipper ->
+          {:ok,
+           Sourceror.Zipper.replace(
+             zipper,
+             quote(do: ["vitex.deps", "vitex build", "phx.digest"])
+           )}
+        end)
+      end
     end
 
     defp detect_topbar(igniter) do
@@ -1620,6 +1687,7 @@ if Code.ensure_loaded?(Igniter) do
       """
 
       notices = [base_notice]
+      # Bun notice is now handled by BunIntegration
       notices = maybe_add_react_notice(notices, options)
       notices = maybe_add_typescript_notice(notices, options)
       notices = maybe_add_ssr_notice(notices, options)
@@ -1668,30 +1736,36 @@ if Code.ensure_loaded?(Igniter) do
 
     defp maybe_add_ssr_notice(notices, _), do: notices
 
-    defp maybe_add_inertia_notice(notices, %{inertia: true} = options) do
-      config_notes = build_inertia_config_notes(options)
-      extra_config = if config_notes != [], do: "\n" <> Enum.join(config_notes, "\n"), else: ""
+    defp maybe_add_inertia_notice(notices, options) when is_list(options) do
+      if Keyword.get(options, :inertia, false) do
+        config_notes = build_inertia_config_notes(options)
+        extra_config = if config_notes != [], do: "\n" <> Enum.join(config_notes, "\n"), else: ""
 
-      notice = """
-      Inertia.js Configuration:
-      - Inertia.js has been configured with React and code splitting
-      - Create page components in assets/js/pages/
-      - In your controllers, use `assign_prop(conn, :prop, ...) |> render_inertia("PageName")`
-      - The Inertia plug and helpers have been added to your application
-      - Example page created at assets/js/pages/Home.#{if options[:typescript], do: "tsx", else: "jsx"}#{extra_config}
+        typescript = Keyword.get(options, :typescript, false)
 
-      To test your setup:
-      1. Update a controller action to use Inertia:
-         ```elixir
-         def index(conn, _params) do
-          assign_prop(conn, :greeting, "Hello from Inertia!")
-          |> render_inertia("Home")
-         end
-         ```
-      2. Run `mix phx.server` and visit the route
-      """
+        notice = """
+        Inertia.js Configuration:
+        - Inertia.js has been configured with React and code splitting
+        - Create page components in assets/js/pages/
+        - In your controllers, use `assign_prop(conn, :prop, ...) |> render_inertia("PageName")`
+        - The Inertia plug and helpers have been added to your application
+        - Example page created at assets/js/pages/Home.#{if typescript, do: "tsx", else: "jsx"}#{extra_config}
 
-      notices ++ [notice]
+        To test your setup:
+        1. Update a controller action to use Inertia:
+           ```elixir
+           def index(conn, _params) do
+            assign_prop(conn, :greeting, "Hello from Inertia!")
+            |> render_inertia("Home")
+           end
+           ```
+        2. Run `mix phx.server` and visit the route
+        """
+
+        notices ++ [notice]
+      else
+        notices
+      end
     end
 
     defp maybe_add_inertia_notice(notices, _), do: notices
@@ -1700,13 +1774,13 @@ if Code.ensure_loaded?(Igniter) do
       notes = []
 
       notes =
-        if options[:camelize_props] do
+        if Keyword.get(options, :camelize_props, false) do
           notes ++ ["- Props will be automatically camelized (snake_case → camelCase)"]
         else
           notes
         end
 
-      if options[:history_encrypt] do
+      if Keyword.get(options, :history_encrypt, false) do
         notes ++ ["- Browser history encryption is enabled for security"]
       else
         notes

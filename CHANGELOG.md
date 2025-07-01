@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.1.5 (2025-07-01)
+
+### Enhancements
+
+* Added `--bun` option to use the Elixir bun package for JavaScript runtime and package management
+* Refactored Bun integration into a dedicated `BunIntegration` module for better maintainability
+* Improved Phoenix JS library resolution in the Vite plugin with better documentation
+* Added comprehensive documentation explaining the difference between system package managers and Elixir-managed Bun
+
+### Improvements
+
+* Extracted Phoenix alias resolution logic into a separate function for clarity
+* Fixed notice pattern matching to properly handle keyword lists
+* Updated tests to be more flexible with formatting differences
+* Better validation and error messages for Bun setup
+
+## v0.1.4 (2025-07-01)
+
+### Bug Fixes
+
+* Fixed repository URL in mix.exs
+
 ## v0.1.3 (2025-07-01)
 
 ### Enhancements
