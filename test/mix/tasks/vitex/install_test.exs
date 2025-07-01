@@ -917,23 +917,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
         "\"@\": path.resolve(__dirname, \"./js\")"
       )
 
-      assert_file_contains(
-        project,
-        "assets/vite.config.js",
-        "\"@/components\": path.resolve(__dirname, \"./js/components\")"
-      )
-
-      assert_file_contains(
-        project,
-        "assets/vite.config.js",
-        "\"@/lib\": path.resolve(__dirname, \"./js/lib\")"
-      )
-
-      assert_file_contains(
-        project,
-        "assets/vite.config.js",
-        "\"@/hooks\": path.resolve(__dirname, \"./js/hooks\")"
-      )
+      # Additional path aliases removed - only @ alias is used
     end
 
     test "queues shadcn init command with npm" do
@@ -944,7 +928,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that shadcn init command is queued
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables"
+        "cd assets && npx shadcn@latest init -y --base-color neutral --css-variables"
       ])
     end
 
@@ -956,7 +940,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Check that shadcn init command is queued with bunx
       assert_has_task(project, "cmd", [
-        "cd assets && bunx --bun shadcn@latest init -y --base-color zinc --css-variables"
+        "cd assets && bunx --bun shadcn@latest init -y --base-color neutral --css-variables"
       ])
     end
 
@@ -1013,11 +997,11 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify vite config has path imports and aliases
       assert_file_contains(project, "assets/vite.config.js", "import path from 'path'")
-      assert_file_contains(project, "assets/vite.config.js", "\"@/components\": path.resolve")
+      assert_file_contains(project, "assets/vite.config.js", "\"@\": path.resolve")
 
       # Verify shadcn init command is queued
       assert_has_task(project, "cmd", [
-        "cd assets && npx shadcn@latest init -y --base-color zinc --css-variables"
+        "cd assets && npx shadcn@latest init -y --base-color neutral --css-variables"
       ])
 
       # Verify shadcn notice is added
@@ -1039,7 +1023,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Verify vite config has path imports and aliases
       assert_file_contains(project, "assets/vite.config.js", "import path from 'path'")
-      assert_file_contains(project, "assets/vite.config.js", "\"@/components\": path.resolve")
+      assert_file_contains(project, "assets/vite.config.js", "\"@\": path.resolve")
 
       # Verify shadcn init command is queued with custom color
       assert_has_task(project, "cmd", [
@@ -1065,7 +1049,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
 
       # Should have simple alias without shadcn paths
       assert_file_contains(project, "assets/vite.config.js", "'@': '/js'")
-      refute_file_contains(project, "assets/vite.config.js", "@/components")
+      refute_file_contains(project, "assets/vite.config.js", "@/lib")
 
       # Should not have any shadcn init task
       refute Enum.any?(project.tasks, fn task ->
