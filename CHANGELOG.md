@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.4 (2025-07-01)
+
+### Bug Fixes
+
+* Fixed Bun integration to use the Elixir bun package's module-based approach
+  * Dev watcher now uses `{Bun, :install_and_run, [:dev, []]}` instead of direct executable calls
+  * Added proper `dev` and `build` profiles to the Bun configuration
+  * Updated mix aliases to use `bun build` task instead of `cmd _build/bun run build`
+  * This ensures compatibility with how the Elixir bun package manages the executable lifecycle
+
 ## v0.2.3 (2025-07-01)
 
 ### Bug Fixes

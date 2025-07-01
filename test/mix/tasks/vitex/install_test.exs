@@ -755,7 +755,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       assert_file_contains(
         project,
         "config/dev.exs",
-        "bun: [\"_build/bun\", \"run\", \"dev\""
+        "bun: {Bun, :install_and_run, [:dev, []]}"
       )
     end
 
@@ -776,12 +776,12 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       assert_file_contains(
         project,
         "mix.exs",
-        "\"assets.build\": [\"bun assets\", \"cmd _build/bun run build --prefix assets\"]"
+        "\"assets.build\": [\"bun assets\", \"bun build\"]"
       )
 
       # Check that assets.deploy uses bun - just check for the key commands
       assert_file_contains(project, "mix.exs", "bun assets")
-      assert_file_contains(project, "mix.exs", "_build/bun run build")
+      assert_file_contains(project, "mix.exs", "bun build")
       assert_file_contains(project, "mix.exs", "phx.digest")
     end
 
@@ -826,6 +826,19 @@ defmodule Mix.Tasks.Vitex.InstallTest do
              end)
     end
 
+    test "queues bun.install and bun assets tasks when --bun is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [bun: true]})
+        |> Install.igniter()
+
+      # Check that bun.install task is queued
+      assert_has_task(project, "bun.install", ["--if-missing"])
+
+      # Check that bun assets task is queued
+      assert_has_task(project, "bun", ["assets"])
+    end
+
     test "complete installation with --bun option" do
       project =
         phx_test_project()
@@ -839,7 +852,7 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       assert_file_contains(project, "config/config.exs", "config :bun")
 
       # Verify bun watcher
-      assert_file_contains(project, "config/dev.exs", "_build/bun")
+      assert_file_contains(project, "config/dev.exs", "{Bun, :install_and_run, [:dev, []]}")
 
       # Verify package.json has workspaces
       assert_file_contains(project, "assets/package.json", "workspaces")

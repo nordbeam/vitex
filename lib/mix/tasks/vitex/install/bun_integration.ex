@@ -92,6 +92,30 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
          ]
        end}
     )
+    |> Igniter.Project.Config.configure(
+      "config.exs",
+      :bun,
+      [:dev],
+      {:code,
+       quote do
+         [
+           args: ["run", "dev"],
+           cd: Path.expand("../assets", __DIR__)
+         ]
+       end}
+    )
+    |> Igniter.Project.Config.configure(
+      "config.exs",
+      :bun,
+      [:build],
+      {:code,
+       quote do
+         [
+           args: ["run", "build"],
+           cd: Path.expand("../assets", __DIR__)
+         ]
+       end}
+    )
   end
 
   defp setup_mix_aliases(igniter) do
@@ -113,14 +137,14 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
       {:ok,
        Sourceror.Zipper.replace(
          zipper,
-         quote(do: ["bun assets", "cmd _build/bun run build --prefix assets"])
+         quote(do: ["bun assets", "bun build"])
        )}
     end)
     |> Igniter.Project.TaskAliases.modify_existing_alias("assets.deploy", fn zipper ->
       {:ok,
        Sourceror.Zipper.replace(
          zipper,
-         quote(do: ["bun assets", "cmd _build/bun run build --prefix assets", "phx.digest"])
+         quote(do: ["bun assets", "bun build", "phx.digest"])
        )}
     end)
   end
@@ -131,9 +155,9 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
 
     watcher_value =
       {:code,
-       Sourceror.parse_string!("""
-       ["_build/bun", "run", "dev", cd: Path.expand("../assets", __DIR__)]
-       """)}
+       quote do
+         {Bun, :install_and_run, [:dev, []]}
+       end}
 
     Igniter.Project.Config.configure(
       igniter,
@@ -156,12 +180,15 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
     - Bun is configured as your package manager and JavaScript runtime
     - The bun executable will be auto-downloaded to _build/bun
     - Phoenix JS dependencies are managed via Bun workspaces
-    - Your dev watcher uses bun to run Vite: `_build/bun run dev`
-    - Assets are built with: `mix bun assets` then `_build/bun run build`
+    - Your dev watcher uses: `{Bun, :install_and_run, [:dev, []]}`
+    - Assets are built with: `mix bun build`
     - To install dependencies manually: `mix bun assets`
     """
 
-    Igniter.add_notice(igniter, notice)
+    igniter
+    |> Igniter.add_notice(notice)
+    |> Igniter.add_task("bun.install", ["--if-missing"])
+    |> Igniter.add_task("bun", ["assets"])
   end
 
   defp validate_setup(igniter) do
