@@ -1716,7 +1716,7 @@ if Code.ensure_loaded?(Igniter) do
     defp build_documentation_notice do
       """
       For more information, see:
-      https://github.com/phoenixframework/vitex
+      https://github.com/nordbeam/vitex
       """
     end
   end
