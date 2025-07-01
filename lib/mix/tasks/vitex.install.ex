@@ -421,6 +421,12 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
+    defp determine_app_extension(typescript, _react, _inertia) do
+      # For root.html.heex, we always use app.js or app.ts
+      # The JSX/TSX files are separate entry points for React/Inertia
+      if typescript, do: "ts", else: "js"
+    end
+
     defp build_additional_options(options) do
       config_items = []
       config_items = maybe_add_config(config_items, "refresh: true", true)
@@ -638,33 +644,14 @@ if Code.ensure_loaded?(Igniter) do
         ])
 
       inertia = igniter.args.options[:inertia] || false
+      react = igniter.args.options[:react] || false
+      typescript = igniter.args.options[:typescript] || false
 
-      if inertia do
-        # For Inertia, we need to create a separate inertia_root layout
-        inertia_layout_path =
-          Path.join([
-            "lib",
-            web_dir(igniter),
-            "components",
-            "layouts",
-            "inertia_root.html.heex"
-          ])
+      # Determine the correct app file extension
+      app_ext = determine_app_extension(typescript, react, inertia)
 
-        content = inertia_root_html(igniter)
-
-        igniter
-        |> Igniter.create_new_file(inertia_layout_path, content, on_exists: :skip)
-        |> Igniter.add_notice("""
-        Created Inertia root layout at #{inertia_layout_path}
-
-        To use Inertia in your application:
-        1. Update your router to use the Inertia plug
-        2. In your controllers, use `render_inertia(conn, "PageName")`
-        3. Create React components in assets/js/pages/
-        """)
-      else
-        react = igniter.args.options[:react] || false
-
+      # First update the regular root.html.heex regardless of inertia flag
+      igniter =
         igniter
         |> Igniter.include_existing_file(file_path)
         |> Igniter.update_file(file_path, fn source ->
@@ -678,20 +665,29 @@ if Code.ensure_loaded?(Igniter) do
                 # Replace Phoenix asset helpers with Vite helpers
                 updated =
                   content
-                  # Pattern 1: Both CSS and JS with ~p sigil (most common in new Phoenix apps)
+                  # First, try to replace the combined CSS and JS pattern (common in phx.new projects)
                   |> String.replace(
-                    ~r/(\s*)<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>\s*\n\s*<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*<\/script>/,
-                    "\\1<%= Vite.vite_client() %>\n\\1<%= Vite.vite_assets(\"css/app.css\") %>\n\\1<%= Vite.vite_assets(\"js/app.js\") %>"
+                    ~r/(\s*)<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>\s*\n\s*<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*\n\s*<\/script>/,
+                    "\\1<%= Vite.vite_client() %>\n\n\\1<%= Vite.vite_assets(\"css/app.css\") %>\n\n\\1<%= Vite.vite_assets(\"js/app.#{app_ext}\") %>"
                   )
-                  # Pattern 2: Just CSS with ~p sigil (in case JS is loaded elsewhere)
+                  # Pattern 1: CSS link with ~p sigil (handles /assets/css/app.css path)
+                  |> String.replace(
+                    ~r/<link[^>]+href={~p"\/assets\/css\/app\.css"}[^>]*>/,
+                    "<%= Vite.vite_assets(\"css/app.css\") %>"
+                  )
+                  # Pattern 2: JS script with ~p sigil (handles /assets/js/app.js path)
+                  |> String.replace(
+                    ~r/<script[^>]+src={~p"\/assets\/js\/app\.js"}[^>]*>\s*<\/script>/,
+                    "<%= Vite.vite_assets(\"js/app.#{app_ext}\") %>"
+                  )
+                  # Pattern 3: Legacy patterns for older Phoenix apps
                   |> String.replace(
                     ~r/<link[^>]+href={~p"\/assets\/app\.css"}[^>]*>/,
                     "<%= Vite.vite_assets(\"css/app.css\") %>"
                   )
-                  # Pattern 3: Just JS with ~p sigil
                   |> String.replace(
                     ~r/<script[^>]+src={~p"\/assets\/app\.js"}[^>]*>\s*<\/script>/,
-                    "<%= Vite.vite_assets(\"js/app.js\") %>"
+                    "<%= Vite.vite_assets(\"js/app.#{app_ext}\") %>"
                   )
                   # Pattern 4: Routes.static_path pattern (older Phoenix)
                   |> String.replace(
@@ -700,16 +696,17 @@ if Code.ensure_loaded?(Igniter) do
                   )
                   |> String.replace(
                     ~r/<script[^>]+src={Routes\.static_path\(@conn,\s*"\/assets\/app\.js"\)}[^>]*>\s*<\/script>/,
-                    "<%= Vite.vite_assets(\"js/app.js\") %>"
+                    "<%= Vite.vite_assets(\"js/app.#{app_ext}\") %>"
                   )
 
                 # Add vite_client if not already present and we made replacements
+                # Only needed if the combined pattern didn't match
                 updated =
                   if not String.contains?(updated, "vite_client") and updated != content do
                     String.replace(
                       updated,
                       ~r/(\s*)(<%= Vite\.vite_assets\("css\/app\.css"\) %>)/,
-                      "\\1<%= Vite.vite_client() %>\n\\1\\2",
+                      "\\1<%= Vite.vite_client() %>\n\n\\1\\2",
                       global: false
                     )
                   else
@@ -732,6 +729,32 @@ if Code.ensure_loaded?(Igniter) do
               content
           end)
         end)
+
+      if inertia do
+        # For Inertia, we also need to create a separate inertia_root layout
+        inertia_layout_path =
+          Path.join([
+            "lib",
+            web_dir(igniter),
+            "components",
+            "layouts",
+            "inertia_root.html.heex"
+          ])
+
+        content = inertia_root_html(igniter)
+
+        igniter
+        |> Igniter.create_new_file(inertia_layout_path, content, on_exists: :skip)
+        |> Igniter.add_notice("""
+        Created Inertia root layout at #{inertia_layout_path}
+
+        To use Inertia in your application:
+        1. Update your router to use the Inertia plug
+        2. In your controllers, use `render_inertia(conn, "PageName")`
+        3. Create React components in assets/js/pages/
+        """)
+      else
+        igniter
       end
     end
 

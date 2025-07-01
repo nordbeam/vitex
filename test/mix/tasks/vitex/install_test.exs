@@ -9,19 +9,36 @@ defmodule Mix.Tasks.Vitex.InstallTest do
       project = phx_test_project() |> Install.update_root_layout()
 
       # Assert that the root layout has been updated with Vite helpers
-      assert_has_patch(project, "lib/test_web/components/layouts/root.html.heex", """
-      ...|
-       - |    <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
-       - |    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
-       - |    </script>
-       + |    <%= Vite.vite_client() %>
-       + |
-       + |    <%= Vite.vite_assets("css/app.css") %>
-       + |
-       + |    <%= Vite.vite_assets("js/app.js") %>
-         |  </head>
-      ...|
-      """)
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_client() %>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"css/app.css\") %>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"js/app.js\") %>"
+      )
+
+      # Ensure old Phoenix asset helpers are removed
+      refute_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        ~s(href={~p"/assets/app.css"})
+      )
+
+      refute_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        ~s(src={~p"/assets/app.js"})
+      )
     end
 
     test "adds React refresh when --react is specified" do
@@ -555,6 +572,60 @@ defmodule Mix.Tasks.Vitex.InstallTest do
         project,
         "lib/test_web/components/layouts/inertia_root.html.heex",
         "<.inertia_head"
+      )
+    end
+
+    test "updates regular root.html.heex when --inertia is specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [inertia: true]})
+        |> Install.update_root_layout()
+
+      # Check that the regular root.html.heex is also updated with Vite helpers
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_client() %>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"css/app.css\") %>"
+      )
+
+      # Regular root layout should still use app.js, not app.jsx
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"js/app.js\") %>"
+      )
+    end
+
+    test "updates regular root.html.heex with correct extension when --inertia and --typescript are specified" do
+      project =
+        phx_test_project()
+        |> Map.put(:args, %{options: [inertia: true, typescript: true]})
+        |> Install.update_root_layout()
+
+      # Check that the regular root.html.heex is updated with correct TypeScript extension
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_client() %>"
+      )
+
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"css/app.css\") %>"
+      )
+
+      # Regular root layout should use app.ts, not app.tsx
+      assert_file_contains(
+        project,
+        "lib/test_web/components/layouts/root.html.heex",
+        "<%= Vite.vite_assets(\"js/app.ts\") %>"
       )
     end
 
