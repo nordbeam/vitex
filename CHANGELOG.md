@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.3 (2025-07-01)
+
+### Enhancements
+
+* Enhanced Inertia.js installer with complete out-of-the-box setup
+* Automatic PageController creation with example inertia action
+* New dedicated inertia pipeline with proper Inertia.Plug configuration
+* Added /inertia route that demonstrates a working Inertia integration
+* Beautiful example Home component with Tailwind CSS detection
+* React Refresh support added to inertia_root layout
+* Improved pipeline configuration to use proper web module references
+
+### Bug Fixes
+
+* Fixed Inertia router pipeline setup to properly reference the web module
+* Fixed React Refresh inclusion in Inertia layouts
+
 ## v0.1.2 (2025-06-25)
 
 ### Bug Fixes
