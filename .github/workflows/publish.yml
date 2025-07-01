@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'  # Only run on version tags like v0.1.0
 
+permissions:
+  contents: write  # Required for creating releases
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -84,17 +87,14 @@ jobs:
         mix hex.publish --yes
         
     - name: Create GitHub Release
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref_name }}
-        body: |
-          Vitex ${{ github.ref_name }} has been released!
-          
-          View on Hex.pm: https://hex.pm/packages/vitex
-          
-          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-        draft: false
-        prerelease: false
+      run: |
+        gh release create "${{ github.ref_name }}" \
+          --repo "${{ github.repository }}" \
+          --title "Release ${{ github.ref_name }}" \
+          --notes "Vitex ${{ github.ref_name }} has been released!
+        
+        View on Hex.pm: https://hex.pm/packages/vitex
+        
+        See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
