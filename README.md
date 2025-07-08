@@ -107,9 +107,23 @@ mix igniter.install vitex --typescript --react --shadcn
 # With custom shadcn theme color
 mix igniter.install vitex --typescript --react --shadcn --base-color slate
 
+# With Bun as package manager (Elixir-managed)
+mix igniter.install vitex --bun
+
 # With all features
-mix igniter.install vitex --react --typescript --tls
+mix igniter.install vitex --react --typescript --tls --bun
 ```
+
+#### Installation Options
+
+- `--react` - Enable React with Fast Refresh support
+- `--typescript` - Enable TypeScript support  
+- `--inertia` - Enable Inertia.js for building SPAs (automatically includes React)
+- `--shadcn` - Enable shadcn/ui component library (requires TypeScript and React/Inertia)
+- `--base-color` - Set shadcn/ui theme color: neutral (default), gray, zinc, stone, or slate
+- `--bun` - Use Bun as the package manager via the Elixir bun package
+- `--tls` - Enable automatic TLS certificate detection for HTTPS development
+- `--ssr` - Enable Server-Side Rendering support
 
 The installer will:
 - Create `vite.config.js` with appropriate settings
@@ -128,7 +142,7 @@ If you prefer manual setup or don't want to use Igniter:
 # mix.exs
 def deps do
   [
-    {:vitex, "~> 0.2.0"}
+    {:vitex, "~> 0.2"}
   ]
 end
 ```
@@ -441,6 +455,35 @@ Vitex respects the following environment variables:
 - `VITE_PORT` - Custom Vite dev server port
 - `VITE_DEV_SERVER_KEY` - Path to TLS key file
 - `VITE_DEV_SERVER_CERT` - Path to TLS certificate file
+
+### Package Manager Support
+
+Vitex supports two approaches for package management:
+
+#### System Package Managers (Default)
+By default, Vitex detects and uses whatever package manager is installed on your system (npm, pnpm, yarn, or bun). The installer will:
+- Detect your system package manager automatically
+- Configure watchers to use `node_modules/.bin/vite`
+- Run `npm install` (or equivalent) during setup
+
+#### Elixir-Managed Bun (--bun flag)
+When you use the `--bun` flag, Vitex integrates with the [Elixir bun package](https://hex.pm/packages/bun):
+- Adds `{:bun, "~> 1.5", runtime: Mix.env() == :dev}` to your dependencies
+- Downloads and manages the bun executable at `_build/bun`
+- Uses Bun workspaces for Phoenix JS dependencies
+- Configures watchers to use `{Bun, :install_and_run, [:dev, []]}`
+- Mix tasks handle the bun installation lifecycle
+
+Example with Bun:
+```bash
+# Install with Bun support
+mix igniter.install vitex --bun
+
+# After installation, these commands are available:
+mix bun.install          # Install bun executable
+mix bun assets           # Install npm dependencies
+mix bun build            # Build assets for production
+```
 
 ## Mix Tasks
 
