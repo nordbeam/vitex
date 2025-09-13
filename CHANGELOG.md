@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.2.5 (2025-09-13)
+
+### Features
+
+* Added support for Phoenix LiveView 1.0 colocated hooks
+  * Automatically configures Vite resolve.alias for `phoenix-colocated` imports
+  * Passes `PHOENIX_BUILD_PATH` environment variable with `Mix.Project.build_path()`
+  * Works with both system package managers and Elixir-managed Bun
+  * Enables imports like `import {hooks} from "phoenix-colocated/my_app"`
+  * No additional configuration needed - works out of the box after `mix vitex.install`
+
+### Technical Improvements
+
+* Updated vite.config.js generation to always include path import for resolve aliases
+* Enhanced BunIntegration to pass build path environment variable to all Bun profiles
+* Ensured phoenix-colocated alias is added even without TypeScript or shadcn options
+
 ## v0.2.4 (2025-07-01)
 
 ### Bug Fixes

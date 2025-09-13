@@ -1,7 +1,7 @@
 defmodule Vitex.MixProject do
   use Mix.Project
 
-  @version "0.2.4"
+  @version "0.2.5"
   @source_url "https://github.com/nordbeam/vitex"
 
   def project do
@@ -28,7 +28,7 @@ defmodule Vitex.MixProject do
 
   defp deps do
     [
-      {:phoenix, "~> 1.7"},
+      {:phoenix, "~> 1.8"},
       {:phoenix_html, "~> 3.3 or ~> 4.0"},
       {:jason, "~> 1.2"},
       {:igniter, "~> 0.5", optional: true},
