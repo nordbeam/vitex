@@ -28,7 +28,7 @@ defmodule Vitex.MixProject do
 
   defp deps do
     [
-      {:phoenix, "~> 1.8"},
+      {:phoenix, "~> 1.7"},
       {:phoenix_html, "~> 3.3 or ~> 4.0"},
       {:jason, "~> 1.2"},
       {:igniter, "~> 0.5", optional: true},
