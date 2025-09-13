@@ -118,7 +118,7 @@ if Code.ensure_loaded?(Igniter) do
 
     def maybe_add_inertia_dep(igniter) do
       if igniter.args.options[:inertia] do
-        Igniter.Project.Deps.add_dep(igniter, {:inertia, "~> 2.4"})
+        Igniter.Project.Deps.add_dep(igniter, {:inertia, "~> 2.5"})
       else
         igniter
       end
@@ -428,7 +428,7 @@ if Code.ensure_loaded?(Igniter) do
       plugins = build_vite_plugins(options, has_tailwind)
       input_files = build_input_files(options)
       additional_opts = build_additional_options(options)
-      path_import = if options[:shadcn], do: "\nimport path from 'path'", else: ""
+      path_import = if options[:shadcn] || true, do: "\nimport path from 'path'", else: ""
 
       """
       import { defineConfig } from 'vite'
@@ -522,12 +522,18 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp build_resolve_config(options) do
+      # The build path is passed as an environment variable at runtime
+      # This ensures it always matches Mix.Project.build_path()
+      phoenix_colocated_alias =
+        "process.env.PHOENIX_BUILD_PATH || path.resolve(__dirname, '../../_build/dev')"
+
       cond do
         options[:shadcn] ->
           """
           resolve: {
             alias: {
-              "@": path.resolve(__dirname, "./js")
+              "@": path.resolve(__dirname, "./js"),
+              "phoenix-colocated": #{phoenix_colocated_alias}
             }
           }
           """
@@ -536,13 +542,21 @@ if Code.ensure_loaded?(Igniter) do
           """
             resolve: {
               alias: {
-                '@': '/js'
+                '@': path.resolve(__dirname, './js'),
+                'phoenix-colocated': #{phoenix_colocated_alias}
               }
             }
           """
 
         true ->
-          ""
+          # Even without TypeScript or shadcn, we still need the phoenix-colocated alias
+          """
+            resolve: {
+              alias: {
+                'phoenix-colocated': #{phoenix_colocated_alias}
+              }
+            }
+          """
       end
     end
 

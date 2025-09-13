@@ -45,7 +45,8 @@ defmodule Mix.Tasks.Vitex do
     # Pass through important environment variables
     env = [
       {"NODE_ENV", node_env()},
-      {"MIX_ENV", to_string(Mix.env())}
+      {"MIX_ENV", to_string(Mix.env())},
+      {"PHOENIX_BUILD_PATH", Mix.Project.build_path()}
     ]
 
     # Pass through Phoenix-specific env vars if they exist

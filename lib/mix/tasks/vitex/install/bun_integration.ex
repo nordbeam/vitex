@@ -88,7 +88,8 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
        quote do
          [
            args: ["install"],
-           cd: Path.expand("../assets", __DIR__)
+           cd: Path.expand("../assets", __DIR__),
+           env: %{"PHOENIX_BUILD_PATH" => Mix.Project.build_path()}
          ]
        end}
     )
@@ -100,7 +101,8 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
        quote do
          [
            args: ["run", "dev"],
-           cd: Path.expand("../assets", __DIR__)
+           cd: Path.expand("../assets", __DIR__),
+           env: %{"PHOENIX_BUILD_PATH" => Mix.Project.build_path()}
          ]
        end}
     )
@@ -112,7 +114,8 @@ defmodule Mix.Tasks.Vitex.Install.BunIntegration do
        quote do
          [
            args: ["run", "build"],
-           cd: Path.expand("../assets", __DIR__)
+           cd: Path.expand("../assets", __DIR__),
+           env: %{"PHOENIX_BUILD_PATH" => Mix.Project.build_path()}
          ]
        end}
     )
